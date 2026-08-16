@@ -1,5 +1,5 @@
 -- ============================================================
--- Arik Portfolio — Supabase schema
+-- Harsh Kapadiya Portfolio — Supabase schema
 -- Run once in Supabase Dashboard → SQL Editor → New query → Run.
 -- Safe to re-run: every statement is idempotent (IF NOT EXISTS / ON CONFLICT).
 -- ============================================================
