@@ -120,7 +120,3 @@ anon key — fast, no backend round-trip, safe because RLS only lets admins
 write. `backend` exists for the two things that shouldn't happen straight
 from the browser: inserting contact/feedback submissions with the
 service-role key, and emailing you when one comes in.
-
-## Not yet done
-
-Hosting/deployment — next phase.
