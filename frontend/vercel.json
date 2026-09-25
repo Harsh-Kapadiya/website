@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/admin-panel/:path*", "destination": "/admin-panel/index.html" },
+    { "source": "/((?!admin-panel).*)", "destination": "/index.html" }
+  ]
+}
