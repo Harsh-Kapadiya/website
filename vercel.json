@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --prefix frontend && npm ci --prefix admin-panel",
+  "buildCommand": "npm run build --prefix frontend && npm run build --prefix admin-panel && rm -rf frontend/dist/admin-panel && cp -r admin-panel/dist frontend/dist/admin-panel",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/admin-panel", "destination": "/admin-panel/index.html" },
+    { "source": "/admin-panel/:path*", "destination": "/admin-panel/index.html" },
+    { "source": "/:path*", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/:path*",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    },
+    {
+      "source": "/assets/:path*",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    }
+  ]
+}

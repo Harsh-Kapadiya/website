@@ -1,0 +1,35 @@
+@import 'tailwindcss' source(none);
+@source './**/*.{ts,tsx}';
+@import 'tw-animate-css';
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0a0a0a;
+  color: #fff;
+}
+
+/* Right-to-left testimonials marquee. Content is rendered twice, so
+   translating exactly -50% loops with no visible seam. */
+@keyframes testimonial-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.testimonial-track {
+  animation: testimonial-marquee linear infinite;
+}
+.testimonial-track:hover { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .testimonial-track { animation: none; }
+}
+
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
