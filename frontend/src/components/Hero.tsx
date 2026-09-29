@@ -9,7 +9,7 @@ import { Magnetic } from './interactions/Magnetic';
 
 type TechItem = { id: string; label: string };
 const FALLBACK_TECH: TechItem[] = ['React', 'TypeScript', 'Next.js', 'Node.js', 'Tailwind'].map((label, i) => ({ id: String(i), label }));
-const DEFAULT_SPLINE = 'https://my.spline.design/boxeshover-1zjS3MSNd4kulP7aZNJbuZkL/';
+const DEFAULT_SPLINE = 'https://my.spline.design/glassknotvortex-rLUuC5Mcco8xm25vDzEAdS2s/';
 
 export function Hero() {
   const { get } = useContentBlocks('home');
