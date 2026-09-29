@@ -24,10 +24,6 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     }
   ]
-}
-
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
     "admin-panel": {
       "root": "admin-panel",
