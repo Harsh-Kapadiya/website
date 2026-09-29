@@ -10,8 +10,8 @@ export function SiteSchema() {
   const { data: socials } = useTable<SocialLink>('social_links', SOCIALS);
 
   const name = get('about', 'name', 'Harsh Kapadiya');
-  const email = get('contact', 'email', 'hello@harshkapadiya.dev');
-  const [locality, ...rest] = get('contact', 'location', 'Patna, India').split(',').map((s) => s.trim());
+  const email = get('contact', 'email', 'harsh2021800@gmail.com');
+  const [locality, ...rest] = get('contact', 'location', 'Haryana, India').split(',').map((s) => s.trim());
   const sameAs = socials.map((s) => s.url).filter((u) => /^https?:\/\//.test(u));
 
   useJsonLd('site', {
@@ -24,7 +24,7 @@ export function SiteSchema() {
         jobTitle: 'Designer & Developer',
         url: SITE_URL,
         email: `mailto:${email}`,
-        image: get('about', 'photo_url', `${SITE_URL}/og-image.png`),
+        image: new URL(get('about', 'photo_url', '/img/harsh.jpg'), SITE_URL).href, // schema.org needs an absolute URL
         ...(sameAs.length ? { sameAs } : {}),
       },
       {

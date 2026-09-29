@@ -34,12 +34,12 @@ export function About() {
           </motion.h1>
           <motion.div {...fade} transition={{ delay: 0.1 }} className="space-y-5 text-white/60 leading-relaxed text-[0.9375rem]">
             <p>{get('about', 'bio_1', "I'm Harsh Kapadiya — a multidisciplinary designer and developer who believes great design is inseparable from great function.")}</p>
-            <p>{get('about', 'bio_2', 'I bring a systems-thinking approach to every project — from brand identity to complex web applications.')}</p>
+            {get('about', 'bio_2', '') && <p>{get('about', 'bio_2', '')}</p>}
           </motion.div>
 
           <div className="mt-10 flex items-center gap-4">
             <img
-              src={get('about', 'photo_url', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200')}
+              src={get('about', 'photo_url', '/img/harsh.jpg')}
               alt={`Portrait of ${name}`}
               width={48}
               height={48}
@@ -47,7 +47,7 @@ export function About() {
             />
             <div>
               <p className="text-white text-[0.9rem] font-medium">{name}</p>
-              <p className="text-white/50 text-[0.8rem]">{get('about', 'title_location', 'Designer & Developer')}</p>
+              <p className="text-white/50 text-[0.8rem]">{get('about', 'title_location', 'Designer & Developer · Haryana, India')}</p>
             </div>
           </div>
 

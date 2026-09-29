@@ -28,9 +28,11 @@ export const NAV_LINKS: NavLink[] = [
 ];
 
 export const SOCIALS: SocialLink[] = [
-  { id: '1', platform: 'GitHub', url: 'https://github.com/Harsh-Kapadiya' },
-  { id: '2', platform: 'LinkedIn', url: '#' },
-  { id: '3', platform: 'Twitter', url: '#' },
+  { id: '1', platform: 'LinkedIn', url: 'https://www.linkedin.com/in/harsh-kapadiya-0a25b1325/' },
+  { id: '2', platform: 'GitHub', url: 'https://github.com/Harsh-Kapadiya' },
+  { id: '3', platform: 'X', url: 'https://x.com/Harsh2021800' },
+  { id: '4', platform: 'LeetCode', url: 'https://leetcode.com/u/Harsh_kapadiya/' },
+  { id: '5', platform: 'Instagram', url: 'https://www.instagram.com/harsh._kapadiya/' },
 ];
 
 const img = (id: string) => `https://images.unsplash.com/${id}?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080`;

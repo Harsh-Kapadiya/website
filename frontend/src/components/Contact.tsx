@@ -22,7 +22,7 @@ export function Contact() {
   const [form, setForm] = useState({ name: '', email: '', message: '', website: '' });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const email = get('contact', 'email', 'hello@harshkapadiya.dev');
+  const email = get('contact', 'email', 'harsh2021800@gmail.com');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,7 +64,7 @@ export function Contact() {
             <dl>
               {[
                 ['Email', email],
-                ['Location', get('contact', 'location', 'Patna, India')],
+                ['Location', get('contact', 'location', 'Haryana, India')],
                 ['Availability', get('contact', 'availability', 'Open to projects')],
                 ['Response time', get('contact', 'response_time', 'I reply within 24 hours')],
               ].map(([label, value]) => (
