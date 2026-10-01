@@ -7,18 +7,10 @@ import { useTable } from '@/hooks/useTable';
 type Stat = { id: string; value: string; label: string };
 type Client = { id: string; name: string };
 
-const FALLBACK_STATS: Stat[] = [
-  { id: '1', value: '5+', label: 'Years experience' },
-  { id: '2', value: '48+', label: 'Projects completed' },
-  { id: '3', value: '12+', label: 'Countries reached' },
-  { id: '4', value: '99%', label: 'Client satisfaction' },
-];
-const FALLBACK_CLIENTS: Client[] = ['Stripe', 'Linear', 'Vercel', 'Notion', 'Loom', 'Arc'].map((name, i) => ({ id: String(i), name }));
-
 export function About() {
   const { get } = useContentBlocks('home');
-  const { data: stats } = useTable<Stat>('stats', FALLBACK_STATS);
-  const { data: clients } = useTable<Client>('clients', FALLBACK_CLIENTS);
+  const { data: stats } = useTable<Stat>('stats', []);
+  const { data: clients } = useTable<Client>('clients', []);
   const name = get('about', 'name', 'Harsh Kapadiya');
   const fade = { initial: { opacity: 0, y: 20 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } };
 
@@ -62,6 +54,7 @@ export function About() {
         </div>
 
         <div>
+          {stats.length > 0 && (
           <dl className="grid grid-cols-2 gap-px bg-white/10 rounded-2xl overflow-hidden mb-10">
             {stats.map((s) => (
               <div key={s.id} className="bg-[#0f0f0f] p-8 flex flex-col-reverse gap-2">
@@ -70,12 +63,17 @@ export function About() {
               </div>
             ))}
           </dl>
-          <p className="text-white/40 mb-6 text-xs tracking-[0.1em]">TRUSTED BY</p>
-          <ul className="flex flex-wrap gap-x-8 gap-y-4">
-            {clients.map((c) => (
-              <li key={c.id} className="text-white/45 hover:text-white/80 transition-colors font-medium">{c.name}</li>
-            ))}
-          </ul>
+          )}
+          {clients.length > 0 && (
+            <>
+              <p className="text-white/40 mb-6 text-xs tracking-[0.1em]">TRUSTED BY</p>
+              <ul className="flex flex-wrap gap-x-8 gap-y-4">
+                {clients.map((c) => (
+                  <li key={c.id} className="text-white/45 hover:text-white/80 transition-colors font-medium">{c.name}</li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       </div>
     </section>

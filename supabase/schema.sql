@@ -195,6 +195,14 @@ alter table public.resume_files enable row level security;
 alter table public.feedback enable row level security;
 alter table public.contact_messages enable row level security;
 
+-- New Supabase projects (since 2026-05-30) no longer expose tables to the
+-- API by default — these grants are required. RLS still decides which rows.
+grant usage on schema public to anon, authenticated, service_role;
+grant select on public.nav_links, public.content_blocks, public.tech_stack, public.skills,
+  public.services, public.projects, public.stats, public.clients, public.social_links,
+  public.resume_items, public.resume_files, public.feedback to anon;
+grant select, insert, update, delete on all tables in schema public to authenticated, service_role;
+
 drop policy if exists "self read own admin row" on public.admins;
 create policy "self read own admin row" on public.admins
   for select to authenticated using (id = (select auth.uid()));
@@ -287,14 +295,8 @@ insert into public.services (number, title, description, tags, sort_order) value
   ('04','Motion & 3D','Bringing ideas to life with motion graphics and 3D visuals that captivate audiences and elevate storytelling.', array['Animation','3D Rendering','Video'], 3)
 on conflict (title) do nothing;
 
-insert into public.stats (value, label, sort_order) values
-  ('5+','Years experience',0), ('48+','Projects completed',1),
-  ('12+','Countries reached',2), ('99%','Client satisfaction',3)
-on conflict (label) do nothing;
-
-insert into public.clients (name, sort_order) values
-  ('Stripe',0), ('Linear',1), ('Vercel',2), ('Notion',3), ('Loom',4), ('Arc',5)
-on conflict (name) do nothing;
+-- Stats and clients are not seeded: add only real ones in the admin panel
+-- (each section stays hidden until it has at least one row).
 
 insert into public.social_links (platform, url, sort_order) values
   ('LinkedIn','https://www.linkedin.com/in/harsh-kapadiya-0a25b1325/',0), ('GitHub','https://github.com/Harsh-Kapadiya',1),
@@ -306,7 +308,7 @@ insert into public.projects (title, category, year, image_url, size, slug, overv
    'A full brand identity and web presence for a creative studio repositioning itself for larger clients.',
    'The existing brand felt dated and did not reflect the caliber of work the studio was producing.',
    'Rebuilt the identity from the ground up — new mark, type system, and a component-driven website that scales with their content.',
-   'Replace this with a real, measurable outcome from the project.', 0),
+   null, 0),
   ('Noir Studio','Product Design','2024','https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080','small','noir-studio',null,null,null,null,1),
   ('Velvet','E-commerce · Art Direction','2024','https://images.unsplash.com/photo-1667266543254-505cf5b16ec4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080','small','velvet',null,null,null,null,2),
   ('Forma','Web App · Design System','2023','https://images.unsplash.com/photo-1671159593357-ee577a598f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080','large','forma',null,null,null,null,3)

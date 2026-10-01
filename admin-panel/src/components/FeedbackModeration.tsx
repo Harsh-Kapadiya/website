@@ -38,7 +38,7 @@ export function FeedbackModeration() {
       <h2 className="text-white mb-2 text-xl font-medium">Reviews {pending > 0 && <span className="text-white/40 font-normal">({pending} pending)</span>}</h2>
       <p className="text-white/40 mb-6 text-[0.8125rem]">Only approved reviews appear in "What clients say" — the section stays hidden until at least one is approved.</p>
       {rows.length === 0 ? (
-        <p className="text-white/40 text-sm">No reviews yet. Share yoursite.com/feedback with past clients.</p>
+        <p className="text-white/40 text-sm">No reviews yet. Share {(import.meta.env.VITE_SITE_URL || window.location.origin).replace(/^https?:\/\//, '')}/feedback with past clients.</p>
       ) : (
         <div className="space-y-4">
           {rows.map((r) => (

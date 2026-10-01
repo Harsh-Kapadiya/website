@@ -13,7 +13,9 @@ const FALLBACK_SLUGS = ['luminary', 'noir-studio', 'velvet', 'forma'];
  *    /work/<slug> entry for every project in Supabase
  */
 function seoFiles(env: Record<string, string>): Plugin {
-  const site = (env.VITE_SITE_URL || 'https://website-ten-dun-87.vercel.app').replace(/\/$/, '');
+  // On Vercel, VERCEL_PROJECT_PRODUCTION_URL is set automatically, so VITE_SITE_URL is only needed for a custom domain.
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const site = (env.VITE_SITE_URL || (vercel ? `https://${vercel}` : 'http://localhost:5173')).replace(/\/$/, '');
   const supabaseKey = env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   return {

@@ -61,6 +61,8 @@ export function TableEditor({
     setSavingId(row.id);
     const { id, ...rest } = row;
     rest.sort_order = Number(rest.sort_order) || 0;
+    // Lists keep empty entries while typing (so ',' and Enter survive); clean them here.
+    for (const fc of fields) if (fc.type === 'tags' || fc.type === 'lines') rest[fc.key] = (rest[fc.key] ?? []).map((s: string) => s.trim()).filter(Boolean);
     const { error } = await supabase.from(table).update(rest).eq('id', id);
     setSavingId(null);
     flash(error ? error.message : 'Saved — live on the site now.', !error);
@@ -118,7 +120,7 @@ export function TableEditor({
                           rows={3}
                           value={(row[f.key] ?? []).join('\n')}
                           placeholder={f.placeholder}
-                          onChange={(e) => update(row.id, f.key, e.target.value.split('\n').map((s) => s.trim()).filter(Boolean))}
+                          onChange={(e) => update(row.id, f.key, e.target.value.split('\n'))}
                           className={`${field} resize-y font-mono text-xs`}
                         />
                       ) : f.type === 'tags' ? (
@@ -126,7 +128,7 @@ export function TableEditor({
                           id={id}
                           value={(row[f.key] ?? []).join(', ')}
                           placeholder="Comma-separated"
-                          onChange={(e) => update(row.id, f.key, e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+                          onChange={(e) => update(row.id, f.key, e.target.value.split(/,\s*/))}
                           className={field}
                         />
                       ) : f.type === 'select' ? (

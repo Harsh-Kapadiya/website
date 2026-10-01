@@ -34,7 +34,7 @@ if (missing.length) {
   }
   console.warn(`[config] dev mode, missing: ${missing.join(', ')} — form writes will fail`);
 }
-if (!mailerConfigured) console.warn('[config] SMTP/OWNER_EMAIL incomplete — submissions save but no email is sent');
+if (!mailerConfigured) console.warn('[config] email not configured (OWNER_EMAIL + RESEND_API_KEY or SMTP_*) — submissions save but no email is sent');
 
 const db =
   env.SUPABASE_URL && supabaseKey
@@ -113,7 +113,7 @@ async function submit(req, res, { spec, table, toRow, email }) {
 const requireDb = (req, res, next) =>
   db ? next() : res.status(503).json({ error: 'UNAVAILABLE', message: 'Service temporarily unavailable.', requestId: req.id });
 
-app.post('/api/contact', requireDb, globalCap, perIp(), (req, res) =>
+app.post('/api/contact', requireDb, perIp(), globalCap, (req, res) =>
   submit(req, res, {
     spec: contactSpec,
     table: 'contact_messages',
@@ -126,7 +126,7 @@ app.post('/api/contact', requireDb, globalCap, perIp(), (req, res) =>
   })
 );
 
-app.post('/api/feedback', requireDb, globalCap, perIp(), (req, res) =>
+app.post('/api/feedback', requireDb, perIp(), globalCap, (req, res) =>
   submit(req, res, {
     spec: feedbackSpec,
     table: 'feedback',

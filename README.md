@@ -41,7 +41,7 @@ that edits every piece of site content without touching code.
                  ▼                          ▲
            backend (Render) ────writes──────┘  (secret key, server-side only)
                  │
-                 └──► SMTP ──► your inbox (one email per contact message / review)
+                 └──► Resend API (or SMTP locally) ──► your inbox (one email per message / review)
 ```
 
 - **Frontend and admin panel talk to Supabase directly** with the public
@@ -199,7 +199,8 @@ and Vercel dashboards.
 | `SUPABASE_SECRET_KEY` | ✅ | Supabase → API Keys → **Secret** key (`sb_secret_…`). Legacy `SUPABASE_SERVICE_ROLE_KEY` also works. **Backend only.** |
 | `ALLOWED_ORIGINS` | ✅ | Comma-separated site origins, e.g. `https://your-site.vercel.app,http://localhost:5173,http://localhost:5174` |
 | `OWNER_EMAIL` | for email | Where notifications go |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | for email | Gmail: `smtp.gmail.com`, `587`, your address, a 16-character **App Password** (Google Account → Security → 2-Step Verification → App passwords), your address |
+| `RESEND_API_KEY` | for email on Render | **Render's free tier blocks SMTP**, so use [Resend](https://resend.com) (free): sign up **with the same address as `OWNER_EMAIL`** → API Keys → create. When set, SMTP is ignored. |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | local / paid Render only | Gmail: `smtp.gmail.com`, `587`, your address, a 16-character **App Password** (Google Account → Security → 2-Step Verification → App passwords), your address |
 | `NODE_ENV` | local only | Set `development` locally. Anything else (including unset, e.g. on Render) is treated as production. |
 | `PORT` | — | Render sets it; locally defaults to `8787` |
 
@@ -210,7 +211,7 @@ and Vercel dashboards.
 | `VITE_SUPABASE_URL` | Same Project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase → API Keys → **Publishable** key (`sb_publishable_…`). `VITE_SUPABASE_PUBLISHABLE_KEY` also accepted. |
 | `VITE_API_URL` | Your Render URL, e.g. `https://website-xxxx.onrender.com` (no trailing slash) |
-| `VITE_SITE_URL` | Your public site URL (no trailing slash) — used in canonical tags, sitemap, robots.txt, share previews |
+| `VITE_SITE_URL` | Optional on Vercel (its production URL is picked up automatically). Set it for a custom domain. Used in canonical tags, sitemap, robots.txt, share previews |
 | `VITE_GA_MEASUREMENT_ID` | `G-XXXXXXXXXX` from GA4 → Admin → Data streams. Optional. |
 
 ### `admin-panel/.env`
@@ -270,7 +271,7 @@ Do it in this order — each step needs a value from the previous one.
 
 ### 2. Render (backend)
 
-1. Push the repo to GitHub.
+1. Push the repo to GitHub. **Deploy branch = `master`** (on GitHub, Settings → Branches → make `master` the default, or pick `master` in Render and Vercel).
 2. Render → **New → Web Service** → pick the repo.
 3. **Root Directory:** `backend` · **Build Command:** `npm ci` ·
    **Start Command:** `npm start`.
@@ -293,8 +294,8 @@ don't type any of them.
    Preset:** *Other*. Leave build/output settings untouched — `vercel.json`
    overrides them.
 3. **Environment Variables:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
-   `VITE_API_URL` (Render URL), `VITE_SITE_URL` (your Vercel/custom domain),
-   optionally `VITE_GA_MEASUREMENT_ID`.
+   `VITE_API_URL` (Render URL), optionally `VITE_SITE_URL` (only for a custom
+   domain) and `VITE_GA_MEASUREMENT_ID`.
 4. **Deploy.** Check both `https://<site>/` and `https://<site>/admin-panel/`.
 
 ### 4. Connect them
@@ -359,9 +360,9 @@ Every list has an **Order** field. Image and link fields must be full
 `https://` URLs (the database rejects anything else). For images, upload to
 Supabase **Storage** (public bucket) and paste the public URL.
 
-**Before launch, replace starter content:** the Unsplash stock photos, the
-sample projects/stats/clients, and the placeholder "Results" line on the
-Luminary case study.
+**Before launch, replace starter content:** the Unsplash stock photos and the
+sample projects. Stats and "Trusted by" clients start empty and stay hidden
+until you add real ones.
 
 ---
 
