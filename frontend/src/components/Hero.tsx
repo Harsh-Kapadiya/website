@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowDownRight, Clock, Code2, Terminal } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -17,24 +18,57 @@ const FALLBACK_TECH: TechItem[] = [
 ].map((label, i) => ({ id: String(i), label }));
 const DEFAULT_SPLINE =
   "https://my.spline.design/glassknotvortex-rLUuC5Mcco8xm25vDzEAdS2s/";
+const DEFAULT_POSTER = "/img/hero-poster.webp";
+
+// ponytail: the live Spline scene is ~2.2 MB of JS plus a nonstop WebGL loop.
+// Phones, tablets, data-saver and reduced-motion visitors get a still poster;
+// desktops get the 3D, loaded only after the rest of the page has finished.
+const wants3D = () =>
+  matchMedia(
+    "(min-width: 768px) and (pointer: fine) and (prefers-reduced-motion: no-preference)",
+  ).matches &&
+  !(navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+    ?.saveData;
 
 export function Hero() {
   const { get } = useContentBlocks("home");
   const { data: tech } = useTable<TechItem>("tech_stack", FALLBACK_TECH);
+  const [live3D] = useState(wants3D);
+  const [mount3D, setMount3D] = useState(false);
+  const [shown3D, setShown3D] = useState(false);
+
+  useEffect(() => {
+    if (!live3D) return;
+    const start = () => setMount3D(true);
+    if (document.readyState === "complete") return start();
+    window.addEventListener("load", start, { once: true });
+    return () => window.removeEventListener("load", start);
+  }, [live3D]);
 
   return (
     <section className="relative min-h-[100svh] flex flex-col justify-end overflow-hidden px-6 md:px-12 pb-16 md:pb-20 pt-28">
       <div className="absolute inset-0" aria-hidden>
-        <iframe
-          src={safeSplineUrl(
-            get("hero", "spline_url", DEFAULT_SPLINE),
-            DEFAULT_SPLINE,
-          )}
-          title="Decorative interactive 3D scene"
-          loading="lazy"
-          className="block w-full h-full border-0 opacity-90"
-          tabIndex={-1}
-        />
+        {live3D ? (
+          mount3D && (
+            <iframe
+              src={safeSplineUrl(
+                get("hero", "spline_url", DEFAULT_SPLINE),
+                DEFAULT_SPLINE,
+              )}
+              title="Decorative interactive 3D scene"
+              onLoad={() => setShown3D(true)}
+              className={`block w-full h-full border-0 transition-opacity duration-1000 ${shown3D ? "opacity-90" : "opacity-0"}`}
+              tabIndex={-1}
+            />
+          )
+        ) : (
+          <img
+            src={get("hero", "poster_url", DEFAULT_POSTER)}
+            alt=""
+            decoding="async"
+            className="block w-full h-full object-cover opacity-90"
+          />
+        )}
       </div>
       <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(to_top,#0a0a0a_30%,rgba(10,10,10,0.55)_65%,rgba(10,10,10,0.1)_100%)]" />
       <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(to_right,rgba(10,10,10,0.75)_0%,transparent_60%)]" />

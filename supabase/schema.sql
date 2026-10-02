@@ -256,6 +256,7 @@ insert into public.content_blocks (page, section, key, value) values
   ('home','hero','cta_primary','View my work'),
   ('home','hero','cta_secondary','Hire me'),
   ('home','hero','spline_url','https://my.spline.design/glassknotvortex-rLUuC5Mcco8xm25vDzEAdS2s/'),
+  ('home','hero','poster_url','/img/hero-poster.webp'),
   ('home','services','intro','End-to-end design solutions tailored to ambitious brands and startups.'),
   ('home','work','heading','Projects I''m proud of'),
   ('home','work','stat_tagline','Happy clients across 12+ countries'),
