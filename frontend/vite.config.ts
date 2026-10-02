@@ -12,15 +12,21 @@ const FALLBACK_SLUGS = ['luminary', 'noir-studio', 'velvet', 'forma'];
  *  - generates robots.txt and sitemap.xml at build time, including a
  *    /work/<slug> entry for every project in Supabase
  */
-function seoFiles(env: Record<string, string>): Plugin {
-  // On Vercel, VERCEL_PROJECT_PRODUCTION_URL is set automatically, so VITE_SITE_URL is only needed for a custom domain.
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  const site = (env.VITE_SITE_URL || (vercel ? `https://${vercel}` : 'http://localhost:5173')).replace(/\/$/, '');
+function seoFiles(env: Record<string, string>, site: string): Plugin {
   const supabaseKey = env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   return {
     name: 'seo-files',
-    transformIndexHtml: (html) => html.replaceAll('__SITE_URL__', site),
+    transformIndexHtml: (html) =>
+      html
+        .replaceAll('__SITE_URL__', site)
+        // Google Search Console → URL-prefix property → HTML tag: paste its content="…" value into this env var.
+        .replace(
+          '</head>',
+          env.VITE_GOOGLE_SITE_VERIFICATION
+            ? `  <meta name="google-site-verification" content="${env.VITE_GOOGLE_SITE_VERIFICATION.replace(/[^\w-]/g, '')}" />\n  </head>`
+            : '</head>'
+        ),
     async generateBundle() {
       let slugs = FALLBACK_SLUGS;
       if (env.VITE_SUPABASE_URL && supabaseKey) {
@@ -53,10 +59,16 @@ function seoFiles(env: Record<string, string>): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, isSsrBuild }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
+  // On Vercel, VERCEL_PROJECT_PRODUCTION_URL is set automatically, so VITE_SITE_URL is only needed for a custom domain.
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const site = (env.VITE_SITE_URL || (vercel ? `https://${vercel}` : 'http://localhost:5173')).replace(/\/$/, '');
   return {
-    plugins: [react(), tailwindcss(), seoFiles(env)],
+    // The second build (`vite build --ssr`, for scripts/prerender.mjs) needs no sitemap/robots and bundles its deps for Node.
+    plugins: [react(), tailwindcss(), ...(isSsrBuild ? [] : [seoFiles(env, site)])],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+    define: { 'import.meta.env.VITE_SITE_URL': JSON.stringify(site) },
+    ssr: { noExternal: true },
   };
 });

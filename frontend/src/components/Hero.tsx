@@ -33,7 +33,10 @@ const wants3D = () =>
 export function Hero() {
   const { get } = useContentBlocks("home");
   const { data: tech } = useTable<TechItem>("tech_stack", FALLBACK_TECH);
-  const [live3D] = useState(wants3D);
+  // null while pre-rendering at build time: the background is chosen in the browser.
+  const [live3D] = useState(() =>
+    typeof window === "undefined" ? null : wants3D(),
+  );
   const [mount3D, setMount3D] = useState(false);
   const [shown3D, setShown3D] = useState(false);
 
@@ -48,7 +51,7 @@ export function Hero() {
   return (
     <section className="relative min-h-[100svh] flex flex-col justify-end overflow-hidden px-6 md:px-12 pb-16 md:pb-20 pt-28">
       <div className="absolute inset-0" aria-hidden>
-        {live3D ? (
+        {live3D === null ? null : live3D ? (
           mount3D && (
             <iframe
               src={safeSplineUrl(

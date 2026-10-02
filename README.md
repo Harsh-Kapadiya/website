@@ -5,44 +5,49 @@ API that stores contact/review submissions and emails you about them, a
 Supabase (Postgres) database, and a standalone admin panel at `/admin-panel`
 that edits every piece of site content without touching code.
 
+**Live:** <https://harsh-kapadiya.vercel.app> · admin at `/admin-panel`
+
 | Piece | Stack | Hosted on |
 |---|---|---|
 | `frontend/` — public site | React 18, TypeScript, Vite 6, Tailwind v4, `motion`, React Router | Vercel |
 | `admin-panel/` — content editor | Same stack, separate app, served at `/admin-panel` | Vercel (same project) |
-| `backend/` — form API | Node 22, Express 5, Nodemailer 10, Helmet | Render |
+| `backend/` — form API | Node 22, Express 5, Helmet; email via Resend API (Nodemailer SMTP locally) | Render |
 | `supabase/schema.sql` — database | Postgres + Row Level Security + Supabase Auth | Supabase |
 
 ---
 
 ## Contents
 
-1. [How it fits together](#how-it-fits-together)
+1. [Architecture](#architecture)
 2. [Repository layout](#repository-layout)
 3. [Features](#features)
-4. [SEO & conversion checklist — where each item lives](#seo--conversion-checklist)
-5. [Security hardening (audit remediation)](#security-hardening)
-6. [Environment variables](#environment-variables)
-7. [Run it locally](#run-it-locally)
-8. [Deploy: Supabase → Render → Vercel](#deploy)
-9. [Google sign-in for the admin panel](#google-sign-in)
-10. [Using the admin panel](#using-the-admin-panel)
-11. [Tests](#tests)
-12. [Troubleshooting](#troubleshooting)
-13. [Known limits & next steps](#known-limits--next-steps)
+4. [Performance on phones](#performance-on-phones)
+5. [SEO & conversion checklist — where each item lives](#seo--conversion-checklist)
+6. [Security hardening (audit remediation)](#security-hardening)
+7. [Environment variables](#environment-variables)
+8. [Run it locally](#run-it-locally)
+9. [Deploy: Supabase → Render → Vercel](#deploy)
+10. [Register the site on Google Search Console](#google-search-console)
+11. [Google sign-in for the admin panel](#google-sign-in)
+12. [Using the admin panel](#using-the-admin-panel)
+13. [Tests](#tests)
+14. [Troubleshooting](#troubleshooting)
+15. [Known limits & next steps](#known-limits--next-steps)
 
 ---
 
-## How it fits together
+## Architecture
 
-```
- Visitor ──► frontend (Vercel)  ──reads──►  Supabase  ◄──reads/writes──  admin-panel (Vercel, /admin-panel)
-                 │                   (RLS: public read,                     (signed-in admins only,
-                 │ POST forms         admin-only write)                      enforced by RLS)
-                 ▼                          ▲
-           backend (Render) ────writes──────┘  (secret key, server-side only)
-                 │
-                 └──► Resend API (or SMTP locally) ──► your inbox (one email per message / review)
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.png">
+  <img alt="Architecture: visitors load the pre-rendered site from Vercel, which reads content from Supabase; contact and review forms POST to the Express API on Render, which inserts rows with the secret key and emails the owner through Resend; the owner signs in to the admin panel on Vercel and edits content in Supabase under admin-only row-level security; on every deploy the Vercel build reads Supabase and writes one HTML file per sitemap URL." src="docs/architecture-light.png">
+</picture>
+
+**Interactive version:** download and open [`docs/architecture.html`](docs/architecture.html)
+in a browser — hover a box to trace its connections; every box links to the
+source lines it describes. It was generated with Archify from
+[`docs/architecture.archify.json`](docs/architecture.archify.json); edit that file
+and re-render when the architecture changes.
 
 - **Frontend and admin panel talk to Supabase directly** with the public
   *publishable* key. That's safe because Row Level Security decides what each
@@ -54,6 +59,10 @@ that edits every piece of site content without touching code.
 - **The admin panel is its own app** (own `package.json`, own auth session),
   built with `base: '/admin-panel/'` and copied into the frontend's build
   output at deploy time — one Vercel project, one domain, two apps.
+- **Every page is pre-rendered on deploy.** The Vercel build renders each URL
+  in `sitemap.xml` to real HTML with live Supabase rows, so link previews and
+  AI crawlers (which don't run JavaScript) see each page's own title, image and
+  text. In the browser the React app takes over and refreshes the data live.
 
 ---
 
@@ -62,27 +71,31 @@ that edits every piece of site content without touching code.
 ```
 WEBSITE/
 ├── vercel.json               Vercel build + routing + security headers (repo root!)
+├── docs/                     Architecture diagram (PNG light/dark, interactive HTML, Archify source)
 ├── supabase/
 │   └── schema.sql            Tables, RLS, constraints, seed data. Safe to re-run.
 ├── backend/
 │   ├── src/index.js          Config checks, CORS, rate limits, routes, health
 │   ├── src/validate.js       Strict input validation for both forms
-│   ├── src/mailer.js         Plain-text notification emails
-│   └── test/validate.test.js node:test suite (npm test)
+│   ├── src/mailer.js         Plain-text notification emails (Resend API, SMTP fallback)
+│   └── test/                 node:test suites — validation + mailer (npm test)
 ├── frontend/
 │   ├── index.html            Default meta, Open Graph, Twitter tags
 │   ├── vite.config.ts        Generates robots.txt + sitemap.xml at build
-│   ├── public/               og-image.png (1200×630), favicon.svg
+│   ├── scripts/prerender.mjs Writes one HTML file per sitemap URL after the build
+│   ├── public/               og-image.png (1200×630), favicon.svg, img/hero-poster.webp
 │   └── src/
+│       ├── entry-server.tsx  Build-time renderer used by prerender.mjs
 │       ├── pages/            One per route (Home, Work, CaseStudy, Services,
 │       │                     About, Resume, Contact, Feedback, ThankYou, NotFound)
 │       ├── components/       Sections + Navbar, Footer, Breadcrumbs, SiteSchema,
 │       │                     StickyMobileCta, ResponseTime, Honeypot, interactions/
 │       ├── hooks/            useContentBlocks, useTable, usePageMeta, useJsonLd
-│       └── lib/              supabaseClient, api, analytics, safeUrl, fallbacks
+│       └── lib/              supabaseClient (read-only query client), api,
+│                             analytics, safeUrl, fallbacks, ssr (pre-render state)
 └── admin-panel/
     └── src/
-        ├── hooks/useAdminAuth.tsx   Shared auth state (password + Google)
+        ├── hooks/useAdminAuth.ts    Shared auth state (password + Google)
         ├── pages/                   LoginPage, DashboardPage (all tabs)
         └── components/              TableEditor, ContentBlocksEditor,
                                      FeedbackModeration, ContactInbox, ResumeFileEditor
@@ -108,7 +121,8 @@ WEBSITE/
 
 ## Features
 
-**Design & interaction** — Spline 3D hero (URL editable), magnetic buttons,
+**Design & interaction** — Spline 3D hero on desktop with a still poster on
+phones (both editable), magnetic buttons,
 3D tilt cards with cursor glare, trailing custom cursor (desktop only),
 cursor-spotlight service rows, right-to-left review marquee that pauses on
 hover, glow-on-hover skills grid. All motion respects `prefers-reduced-motion`.
@@ -122,6 +136,25 @@ built-in starter content so it never renders blank.
 **Forms** — contact and review forms post to the backend, which validates,
 stores, and emails you. Both redirect to `/thank-you` and fire a Google
 Analytics conversion event.
+
+---
+
+## Performance on phones
+
+| What a phone downloads | Before | Now |
+|---|---|---|
+| Hero 3D scene (Spline) | ~2.2 MB of JavaScript in 58 requests + a WebGL loop running nonstop | a 19 KB still image (`img/hero-poster.webp`) |
+| Site JavaScript | 598 KB (176 KB gzipped) | ~390 KB (~123 KB gzipped) |
+
+- `Hero.tsx` loads the live 3D only on desktops (`min-width: 768px`, a mouse,
+  no reduced-motion or data-saver), and only after the page has finished
+  loading. Everyone else gets the poster. Change it in admin → *Page copy →
+  hero → poster_url*; if you change the Spline scene, export a matching image.
+- The public site only reads tables, so it ships Supabase's small query client
+  (`@supabase/postgrest-js`) instead of the full `supabase-js` (auth, storage,
+  realtime). The admin panel still uses `supabase-js` for sign-in.
+- Below-the-fold images use `loading="lazy"`. Real-world numbers: Vercel →
+  *Speed Insights* (already installed).
 
 ---
 
@@ -140,7 +173,7 @@ Analytics conversion event.
 | 9 | robots.txt | Generated at build by `vite.config.ts` — allows everything except `/admin-panel/` and `/thank-you`, points to the sitemap. |
 | 10 | Unique page titles | `usePageMeta` per page, e.g. "Luminary — case study — Harsh Kapadiya". |
 | 11 | Meta descriptions | Same hook — a unique, hand-written description per page; case studies use their overview. Also sets canonical URL and `robots`. |
-| 12 | Social share images | `public/og-image.png` (1200×630) + Open Graph / Twitter tags in `index.html`; case studies swap in their cover image. |
+| 12 | Social share images | `public/og-image.png` (1200×630) + Open Graph / Twitter tags; case studies use their cover image. Pre-rendered into each page's HTML, so WhatsApp/LinkedIn/X previews are per page. |
 | 13 | Real reviews | `Testimonials.tsx` shows **only approved rows** from the `feedback` table — no placeholder quotes anywhere. With zero approved reviews the section doesn't render. Collect them via `/feedback`, approve in admin → *Reviews*. |
 | 14 | Alt text on images | Descriptive alt on every image (projects, portrait, avatars, galleries); decorative icons are `aria-hidden`; the 3D iframe is marked decorative. Verified: zero images without alt on any page. |
 | 15 | Local schema | `SiteSchema.tsx` — `Person` + `ProfessionalService` (with address from *home / contact → location*) + `WebSite`, built from live CMS content. |
@@ -150,6 +183,19 @@ Also: `sitemap.xml` generated at build (includes every case-study slug pulled
 from Supabase), canonical URLs, exactly one `<h1>` per page, skip-to-content
 link, visible focus rings, labelled form fields.
 
+**Pre-rendering** (`scripts/prerender.mjs` + `src/entry-server.tsx`): after
+`vite build`, every URL in the sitemap is rendered to `dist/<path>/index.html`
+with its own `<title>`, description, canonical, Open Graph/Twitter tags,
+JSON-LD and page text, plus the rows it used (so the first paint in the
+browser already shows real content). Anything not in the sitemap (`/thank-you`,
+a case study added after the last deploy, unknown URLs) is served
+`dist/spa.html` and rendered in the browser as before. Check it on the live
+site with `view-source:https://harsh-kapadiya.vercel.app/work/luminary`.
+
+**Search Console verification:** set `VITE_GOOGLE_SITE_VERIFICATION` and every
+page carries Google's verification tag — see
+[Register the site on Google Search Console](#google-search-console).
+
 ---
 
 ## Security hardening
@@ -158,7 +204,7 @@ Findings from the September 2026 security audit that are fixed in this code:
 
 | Audit ID | Fix |
 |---|---|
-| SEC-01 Outdated Nodemailer | Nodemailer **10.0.12**, Node ≥ 22, lockfiles committed; file/URL access disabled in the transport. |
+| SEC-01 Outdated Nodemailer | Nodemailer **10.0.12**, Node ≥ 22, lockfiles committed; file/URL access disabled in the transport. Production email goes through Resend's HTTPS API (Render's free tier blocks SMTP). |
 | SEC-02 Anonymous privileged writes | Routes write only fixed, whitelisted columns; strict validation; honeypot; per-IP **and** global rate limits; 16 KB body limit. |
 | SEC-03 CORS fails open | Fails **closed**: in production the server refuses to start without `ALLOWED_ORIGINS`; unknown origins get no CORS headers. |
 | SEC-04 Rate limiting | Separate per-route per-IP limits (5 / 15 min) + a global cap (100 / 15 min); `429` with `Retry-After`; `trust proxy` set for Render. |
@@ -169,6 +215,7 @@ Findings from the September 2026 security audit that are fixed in this code:
 | AUTH-02 DB-enforced authorization | Every write policy is `to authenticated` + `is_admin()`. Tested: anon and signed-in non-admins are rejected on every table. |
 | DB-01 Seeds not idempotent | Natural unique keys on every seeded table → `ON CONFLICT` actually works. Verified by running the schema twice: identical row counts. Never overwrites admin edits. |
 | DB-02 `updated_at` stale | Trigger keeps it current. |
+| DB-04 API access on new projects | Supabase stopped exposing new tables to the API by default (new projects from 30 May 2026, existing ones from 30 Oct 2026), so `schema.sql` grants read access to `anon` (public tables only) and full access to `authenticated` / `service_role`; RLS still decides which rows. Tested: anon can't see the inbox or unapproved reviews. |
 | DB-03 Weak constraints | CHECK constraints for enums, lengths, slugs and URL schemes (blocks `javascript:` links). |
 | OPS-01 Health lies | `/api/health` = liveness; `/api/ready` returns **503** if the database is unreachable. |
 | OPS-02 Missing secrets | Startup fails in production if Supabase config or origins are missing. |
@@ -213,6 +260,7 @@ and Vercel dashboards.
 | `VITE_API_URL` | Your Render URL, e.g. `https://website-xxxx.onrender.com` (no trailing slash) |
 | `VITE_SITE_URL` | Optional on Vercel (its production URL is picked up automatically). Set it for a custom domain. Used in canonical tags, sitemap, robots.txt, share previews |
 | `VITE_GA_MEASUREMENT_ID` | `G-XXXXXXXXXX` from GA4 → Admin → Data streams. Optional. |
+| `VITE_GOOGLE_SITE_VERIFICATION` | Google Search Console → Add property → URL prefix → HTML tag → the `content="…"` value. Optional; adds the verification tag to every page. |
 
 ### `admin-panel/.env`
 
@@ -271,7 +319,7 @@ Do it in this order — each step needs a value from the previous one.
 
 ### 2. Render (backend)
 
-1. Push the repo to GitHub. **Deploy branch = `master`** (on GitHub, Settings → Branches → make `master` the default, or pick `master` in Render and Vercel).
+1. Push the repo to GitHub. Render and Vercel deploy the default branch, `main`.
 2. Render → **New → Web Service** → pick the repo.
 3. **Root Directory:** `backend` · **Build Command:** `npm ci` ·
    **Start Command:** `npm start`.
@@ -295,7 +343,7 @@ don't type any of them.
    overrides them.
 3. **Environment Variables:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
    `VITE_API_URL` (Render URL), optionally `VITE_SITE_URL` (only for a custom
-   domain) and `VITE_GA_MEASUREMENT_ID`.
+   domain), `VITE_GA_MEASUREMENT_ID` and `VITE_GOOGLE_SITE_VERIFICATION`.
 4. **Deploy.** Check both `https://<site>/` and `https://<site>/admin-panel/`.
 
 ### 4. Connect them
@@ -317,7 +365,54 @@ don't type any of them.
 - [ ] Open `/sitemap.xml` and `/robots.txt`.
 - [ ] Paste your URL into [opengraph.xyz](https://www.opengraph.xyz) to check the share preview.
 - [ ] Run [Google's Rich Results Test](https://search.google.com/test/rich-results) on the home page and a case study.
-- [ ] Submit the sitemap in [Google Search Console](https://search.google.com/search-console).
+- [ ] `view-source:` a case study URL — its own title and the page text are in the raw HTML (pre-rendering works).
+- [ ] [Register the site on Google Search Console](#google-search-console) and submit the sitemap.
+
+---
+
+## Google Search Console
+
+Search Console is how you tell Google the site exists, prove you own it, and
+see which pages are indexed and what people search to find you. Do this once,
+after the site is deployed with pre-rendering.
+
+1. Open [Google Search Console](https://search.google.com/search-console) and
+   sign in with the Google account that should own the site.
+2. **Add property** → choose **URL prefix** (not *Domain* — a Domain property
+   needs DNS records, and you don't control `vercel.app`'s DNS). Enter exactly
+   `https://harsh-kapadiya.vercel.app/` → **Continue**.
+3. Under *Other verification methods*, open **HTML tag**. It shows a line like
+   `<meta name="google-site-verification" content="AbC123…" />`. Copy **only**
+   the `content` value (`AbC123…`). Leave this tab open.
+4. **Vercel** → your project → **Settings → Environment Variables** → add
+   `VITE_GOOGLE_SITE_VERIFICATION` = that value, for **Production** → Save.
+5. **Deployments** → latest → **⋯ → Redeploy**. Variables are read at build
+   time, so the tag only appears after a redeploy.
+6. Check it's live: open `view-source:https://harsh-kapadiya.vercel.app/` and
+   search the page for `google-site-verification`.
+7. Back in Search Console → **Verify** → "Ownership verified". Keep the
+   variable set forever; removing it un-verifies the property.
+8. Left menu → **Sitemaps** → under *Add a new sitemap* type `sitemap.xml`
+   (the box already shows the site URL) → **Submit**. It should report
+   *Success* and the number of discovered pages (one per sitemap URL).
+9. Top search bar (**URL inspection**) → paste the home page URL → **Request
+   indexing**. Repeat for `/work` and your strongest case study; Google limits
+   these requests per day, and the sitemap covers the rest.
+10. Come back after a few days: **Indexing → Pages** shows what's indexed
+    ("Discovered – currently not indexed" is normal for a new site), and
+    **Performance** shows searches, clicks and positions.
+
+**Bing too (optional, 2 minutes):** [Bing Webmaster Tools](https://www.bing.com/webmasters)
+→ sign in → **Import** your site from Google Search Console. Bing's index also
+feeds other search engines.
+
+**Shortcut:** if GA4 (`VITE_GA_MEASUREMENT_ID`) is already live and you're an
+admin of that GA property with the same Google account, step 3 can use the
+**Google Analytics** method instead of the HTML tag.
+
+**Custom domain later?** Add it as a new property (a *Domain* property via a
+DNS TXT record works then), set `VITE_SITE_URL` on Vercel, redeploy, and submit
+the sitemap again.
 
 ---
 
@@ -369,19 +464,21 @@ until you add real ones.
 ## Tests
 
 ```bash
-cd backend && npm test          # 8 validation tests: hostile emails, oversized
-                                # fields, unknown keys, ratings, control chars
-cd frontend && npm run build    # typecheck + build + sitemap/robots generation
+cd backend && npm test          # 9 tests: hostile emails, oversized fields, unknown
+                                # keys, ratings, control chars, Resend mailer
+cd frontend && npm run build    # typecheck + build + sitemap/robots + pre-render
 cd admin-panel && npm run build # typecheck + build
 ```
 
 Verified before this release: the schema was run twice against Postgres 16
 with a Supabase auth shim (identical row counts; RLS checked as anon,
 non-admin and admin); the backend was exercised for CORS, 400/413/429/500
-paths and fail-fast startup; and 75 browser checks ran against the merged
+paths and fail-fast startup; and 88 browser checks ran against the
 production build (unique titles/descriptions, one `<h1>` per page,
 canonicals, breadcrumbs, JSON-LD, alt text, 404s, both form → thank-you
-flows, GA events, mobile above-the-fold CTA, sticky CTA, admin routing).
+flows, GA events, mobile above-the-fold CTA, sticky CTA, admin routing,
+no Spline download on phones, pre-rendered HTML with JavaScript off, no
+duplicate meta tags after the app loads).
 
 ---
 
@@ -397,19 +494,23 @@ flows, GA events, mobile above-the-fold CTA, sticky CTA, admin routing).
 | Admin: "Supabase isn't connected" | Same variables missing for the admin build (on Vercel both apps share them). Key must be named `VITE_SUPABASE_ANON_KEY` or `VITE_SUPABASE_PUBLISHABLE_KEY`. |
 | Admin: "isn't an admin yet" | The signed-in user's UID isn't in `public.admins` — see Deploy 1.4 / Google gotcha. |
 | Google sign-in returns to the wrong page or errors | `https://<site>/admin-panel/` missing from Supabase Redirect URLs. |
-| No emails | Check Render logs for `notification failed`; for Gmail use an App Password, not your normal password. |
+| No emails | Check Render logs for `notification failed`. On Render use `RESEND_API_KEY`, and the Resend account must be the `OWNER_EMAIL` address (without a verified domain Resend only delivers to its own account email). Locally with Gmail SMTP, use an App Password. |
 | "What clients say" doesn't show | Correct — it only appears once at least one review is approved. |
 | Vercel build error 127 / script not found | Root Directory must be the repo root so `vercel.json` is used. |
 | Local `.env` changes ignored | Restart the dev server — Vite and Node read `.env` only at startup. |
+| `view-source:` of a page shows an empty `<div id="root">` | That URL wasn't pre-rendered: it isn't in `sitemap.xml` (e.g. added after the last deploy) — redeploy. The page still works for visitors. |
+| Search Console: verification fails | Redeploy after setting `VITE_GOOGLE_SITE_VERIFICATION`, and make sure the property URL is exactly `https://harsh-kapadiya.vercel.app/`. |
 
 ---
 
 ## Known limits & next steps
 
-- **Per-page share previews on WhatsApp/LinkedIn/X:** this is a client-rendered
-  SPA. Google sees per-page titles/descriptions (it runs JavaScript); link-preview
-  bots only read `index.html`, so they show the site-wide card. Fix, if it matters:
-  prerender routes at build or move to a framework with SSR.
+- **Pre-rendered pages update on deploy.** Every URL in the sitemap is
+  pre-rendered to HTML at build time (`scripts/prerender.mjs`), so link previews
+  and AI crawlers see each page's own title, image and text. Visitors always get
+  live data; the HTML snapshot crawlers read refreshes on the next deploy (Vercel
+  → Deployments → Redeploy after big content edits, or wire a Vercel Deploy Hook).
+  A case study added after a deploy still works, rendered in the browser.
 - **Reviews:** the system only ever shows genuine, approved reviews. Send
   `/feedback` to past clients. Review rich-snippet stars are intentionally not
   added — Google ignores self-published reviews for a person's own services.
@@ -417,7 +518,8 @@ flows, GA events, mobile above-the-fold CTA, sticky CTA, admin routing).
   instance, switch to a Redis store (Upstash + `rate-limit-redis`).
 - **Email delivery** has no retry queue; failures are logged and every
   submission is still in the admin inbox.
-- **Bundle size:** the site JS is ~175 KB gzipped (mostly the Supabase client,
-  motion and React). Route-level code splitting would trim first load.
+- **Bundle size:** the site JS is ~123 KB gzipped (mostly React, React Router
+  and `motion`). Route-level code splitting would save little — pages share
+  most components.
 - **Content Security Policy:** not set yet — would need an allow-list for
   Supabase, Spline, Google Fonts, GA and your image hosts.

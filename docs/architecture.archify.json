@@ -1,0 +1,389 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Harsh Kapadiya Portfolio — System Architecture",
+    "output": "docs/architecture.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/Harsh-Kapadiya/website",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "2a371fe260c56ea942d07e01cf17f11c6a654551"
+    }
+  },
+  "components": [
+    {
+      "id": "owner",
+      "type": "external",
+      "label": "You (site owner)",
+      "sublabel": "gets emails · edits content",
+      "pos": [
+        600,
+        40
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/mailer.js",
+          "line": 28,
+          "label": "notifications go to OWNER_EMAIL"
+        },
+        {
+          "path": "admin-panel/src/hooks/useAdminAuth.ts",
+          "line": 27,
+          "label": "admins table check"
+        }
+      ]
+    },
+    {
+      "id": "resend",
+      "type": "external",
+      "label": "Resend",
+      "sublabel": "email API over HTTPS",
+      "tag": "email",
+      "pos": [
+        940,
+        40
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/mailer.js",
+          "line": 36,
+          "end_line": 42,
+          "label": "POST api.resend.com/emails"
+        }
+      ]
+    },
+    {
+      "id": "admin",
+      "type": "frontend",
+      "label": "Admin panel",
+      "sublabel": "/admin-panel · React",
+      "tag": "Vercel",
+      "pos": [
+        240,
+        190
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "admin-panel/vite.config.ts",
+          "line": 9,
+          "label": "served under /admin-panel/"
+        },
+        {
+          "path": "admin-panel/src/hooks/useAdminAuth.ts",
+          "line": 57,
+          "end_line": 70,
+          "label": "password + Google sign-in"
+        },
+        {
+          "path": "admin-panel/src/components/TableEditor.tsx",
+          "line": 66,
+          "end_line": 80,
+          "label": "update / insert / delete rows"
+        }
+      ]
+    },
+    {
+      "id": "build",
+      "type": "cloud",
+      "label": "Vercel build",
+      "sublabel": "vite build + prerender",
+      "tag": "on deploy",
+      "pos": [
+        240,
+        330
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "frontend/package.json",
+          "line": 8,
+          "label": "build → SSR → prerender"
+        },
+        {
+          "path": "frontend/scripts/prerender.mjs",
+          "line": 22,
+          "end_line": 35,
+          "label": "HTML for every sitemap URL"
+        },
+        {
+          "path": "vercel.json",
+          "line": 5,
+          "end_line": 10,
+          "label": "build + spa.html fallback"
+        }
+      ]
+    },
+    {
+      "id": "site",
+      "type": "frontend",
+      "label": "Public website",
+      "sublabel": "React SPA · pre-rendered HTML",
+      "tag": "Vercel",
+      "pos": [
+        240,
+        470
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "frontend/src/App.tsx",
+          "line": 16,
+          "end_line": 29,
+          "label": "page routes"
+        },
+        {
+          "path": "frontend/src/lib/supabaseClient.ts",
+          "line": 13,
+          "label": "read-only query client"
+        },
+        {
+          "path": "frontend/src/lib/api.ts",
+          "line": 4,
+          "end_line": 12,
+          "label": "forms POST to the API"
+        }
+      ]
+    },
+    {
+      "id": "visitor",
+      "type": "external",
+      "label": "Visitor",
+      "sublabel": "phone or desktop",
+      "pos": [
+        30,
+        470
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "frontend/src/App.tsx",
+          "line": 16,
+          "end_line": 29,
+          "label": "pages a visitor can open"
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Supabase",
+      "sublabel": "Postgres · Auth · RLS",
+      "tag": "data",
+      "pos": [
+        600,
+        180
+      ],
+      "size": [
+        210,
+        364
+      ],
+      "sources": [
+        {
+          "path": "supabase/schema.sql",
+          "line": 19,
+          "end_line": 29,
+          "label": "is_admin() gate"
+        },
+        {
+          "path": "supabase/schema.sql",
+          "line": 200,
+          "end_line": 204,
+          "label": "API grants"
+        },
+        {
+          "path": "supabase/schema.sql",
+          "line": 206,
+          "end_line": 232,
+          "label": "row-level security"
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Forms API",
+      "sublabel": "Express 5 · /api/*",
+      "tag": "Render",
+      "pos": [
+        620,
+        640
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/index.js",
+          "line": 116,
+          "end_line": 140,
+          "label": "contact + feedback routes"
+        },
+        {
+          "path": "backend/src/index.js",
+          "line": 101,
+          "label": "insert with secret key"
+        },
+        {
+          "path": "backend/src/index.js",
+          "line": 14,
+          "end_line": 25,
+          "label": "secret key + CORS allow-list"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Vercel · harsh-kapadiya.vercel.app",
+      "wraps": [
+        "admin",
+        "build",
+        "site"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Supabase · ap-south-1",
+      "wraps": [
+        "db"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Render · web service",
+      "wraps": [
+        "api"
+      ],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "from": "visitor",
+      "to": "site",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "from": "site",
+      "to": "db",
+      "label": "read content (RLS)",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "site",
+      "to": "api",
+      "label": "POST /api/contact · /api/feedback",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "from": "api",
+      "to": "db",
+      "label": "insert (secret key)",
+      "variant": "security"
+    },
+    {
+      "from": "api",
+      "to": "resend",
+      "label": "notify (HTTPS)",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "bottom"
+    },
+    {
+      "from": "resend",
+      "to": "owner",
+      "label": "email",
+      "variant": "dashed"
+    },
+    {
+      "from": "owner",
+      "to": "admin",
+      "label": "sign in (email / Google)",
+      "fromSide": "left",
+      "toSide": "top"
+    },
+    {
+      "from": "admin",
+      "to": "db",
+      "label": "edits (admin RLS)",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "build",
+      "to": "db",
+      "label": "read rows at build",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "build",
+      "to": "site",
+      "label": "HTML per URL",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "SEO",
+      "items": [
+        "Every sitemap URL is pre-rendered to real HTML on deploy",
+        "Link previews and AI crawlers read each page's own title, image and text",
+        "Unknown URLs fall back to spa.html and render in the browser"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Speed on phones",
+      "items": [
+        "Phones get a 19 KB poster instead of the ~2.2 MB Spline 3D scene",
+        "The public site ships only Supabase's query client (postgrest-js)",
+        "Desktop loads the 3D scene after the page has finished loading"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Security",
+      "items": [
+        "Browsers hold only the publishable key; the secret key lives on Render",
+        "RLS: anyone reads content and approved reviews; only admins write",
+        "Forms: validation, honeypot, per-IP and global rate limits"
+      ]
+    }
+  ]
+}
