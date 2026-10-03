@@ -39,7 +39,7 @@
 
 </p>
 
----
+***
 
 ## ✦ Overview
 
@@ -62,7 +62,7 @@ The entire website can be updated from the admin panel without modifying the fro
 > **Live:** https://harsh-kapadiya.vercel.app
 > **Admin:** `https://harsh-kapadiya.vercel.app/admin-panel/`
 
----
+***
 
 ## ✨ Highlights
 
@@ -78,7 +78,7 @@ The entire website can be updated from the admin panel without modifying the fro
 | 📱 **Responsive**       | Dedicated mobile optimizations and sticky mobile CTA                 |
 | 📊 **Analytics**        | GA4 page views and conversion events                                 |
 
----
+***
 
 # 🏗️ Architecture
 
@@ -149,7 +149,7 @@ The repository also contains:
 
 The interactive architecture diagram can be opened directly from `docs/architecture.html`.
 
----
+***
 
 # 📁 Project Structure
 
@@ -201,7 +201,7 @@ WEBSITE/
         └── components/
 ```
 
----
+***
 
 # 🧭 Routes
 
@@ -218,7 +218,7 @@ WEBSITE/
 | `/thank-you`     | Form confirmation                             |    ✅    |
 | `/admin-panel/*` | Admin dashboard                               |    ✅    |
 
----
+***
 
 # 🎨 Features
 
@@ -243,7 +243,7 @@ Motion is automatically reduced when the visitor has enabled:
 prefers-reduced-motion
 ```
 
----
+***
 
 ## 🧩 Fully Editable Content
 
@@ -275,7 +275,7 @@ Only structural section headings remain in code.
 
 If Supabase is unavailable, the website falls back to built-in starter content instead of rendering an empty page.
 
----
+***
 
 ## 📬 Contact & Review System
 
@@ -310,7 +310,7 @@ Supported:
 * Email notifications
 * Google Analytics conversion events
 
----
+***
 
 # ⚡ Performance
 
@@ -341,7 +341,7 @@ hero-poster.webp
 
 This keeps the visual identity while avoiding unnecessary WebGL work on phones.
 
----
+***
 
 # 🔎 SEO
 
@@ -399,7 +399,7 @@ Each pre-rendered page receives its own:
 
 This means crawlers and social platforms can see meaningful page content without executing JavaScript.
 
----
+***
 
 # 🛡️ Security
 
@@ -452,7 +452,7 @@ These are not currently implemented:
 * CAPTCHA
 * Content Security Policy
 
----
+***
 
 # 🔐 Environment Variables
 
@@ -524,7 +524,7 @@ Each application has its own environment configuration.
 
 The secret key must never be exposed to the browser.
 
----
+***
 
 # 💻 Local Development
 
@@ -534,7 +534,7 @@ The secret key must never be exposed to the browser.
 * npm
 * Supabase project
 
----
+***
 
 ## 1. Database
 
@@ -546,7 +546,7 @@ supabase/schema.sql
 
 inside the Supabase SQL Editor.
 
----
+***
 
 ## 2. Backend
 
@@ -584,7 +584,7 @@ Expected:
 }
 ```
 
----
+***
 
 ## 3. Frontend
 
@@ -606,7 +606,7 @@ Frontend:
 http://localhost:5173
 ```
 
----
+***
 
 ## 4. Admin Panel
 
@@ -628,7 +628,7 @@ Admin:
 http://localhost:5174
 ```
 
----
+***
 
 # 🚀 Deployment
 
@@ -648,7 +648,7 @@ Vercel
 Frontend + Admin Panel
 ```
 
----
+***
 
 ## 1. Supabase
 
@@ -669,7 +669,7 @@ values ('YOUR_USER_UID');
    * Publishable key
    * Secret key
 
----
+***
 
 ## 2. Render
 
@@ -700,7 +700,7 @@ should return:
 
 > Render's free tier can sleep when idle, so the first request after inactivity may take 30–60 seconds.
 
----
+***
 
 ## 3. Vercel
 
@@ -724,7 +724,7 @@ https://your-site.vercel.app/
 https://your-site.vercel.app/admin-panel/
 ```
 
----
+***
 
 ## 4. Connect Services
 
@@ -758,7 +758,7 @@ https://your-site.vercel.app/admin-panel/
 
 to the allowed redirect URLs.
 
----
+***
 
 # 🧪 Production Checklist
 
@@ -781,7 +781,7 @@ Before considering the deployment complete:
 [ ] Admin route is not indexed
 ```
 
----
+***
 
 # 🔍 Google Search Console
 
@@ -813,7 +813,7 @@ sitemap.xml
 
 Bing Webmaster Tools can import the site directly from Google Search Console.
 
----
+***
 
 # 🔑 Google Sign-In
 
@@ -852,7 +852,7 @@ insert into public.admins (id)
 values ('GOOGLE_USER_UID');
 ```
 
----
+***
 
 # 🎛️ Admin Panel
 
@@ -889,7 +889,7 @@ Every sortable list includes an `Order` field.
 
 Image and link fields accept secure `https://` URLs.
 
----
+***
 
 # 🧹 Before Launch
 
@@ -908,7 +908,7 @@ In particular:
 
 Empty sections remain hidden until real content is added.
 
----
+***
 
 # 🧪 Tests
 
@@ -953,7 +953,7 @@ cd admin-panel
 npm run build
 ```
 
----
+***
 
 # ✅ Verification
 
@@ -985,7 +985,7 @@ The production build was verified for:
 * JavaScript-disabled rendering
 * Duplicate metadata prevention
 
----
+***
 
 # 🛠️ Troubleshooting
 
@@ -1006,7 +1006,7 @@ The production build was verified for:
 | Empty HTML from `view-source:`      | Page wasn't included in the last pre-render build |
 | Search Console verification fails   | Redeploy after setting verification variable      |
 
----
+***
 
 # 🗺️ Known Limitations & Roadmap
 
@@ -1045,7 +1045,7 @@ A CSP has not been added yet because the final allowlist needs to account for:
 → Automated deployment hooks for content changes
 ```
 
----
+***
 
 # 📊 Tech Stack
 
@@ -1089,7 +1089,7 @@ A CSP has not been added yet because the final allowlist needs to account for:
 * Sitemap
 * Pre-rendering
 
----
+***
 
 # 📌 Repository Philosophy
 
@@ -1104,7 +1104,7 @@ SEO should work without depending entirely on JavaScript.
 The admin experience should be as polished as the public website.
 ```
 
----
+***
 
 # 👨‍💻 Author
 
@@ -1120,7 +1120,7 @@ The admin experience should be as polished as the public website.
   <a href="https://github.com/Harsh-Kapadiya">GitHub</a>
 </p>
 
----
+***
 
 <p align="center">
   Built with curiosity, code, and a slightly unhealthy obsession with good UI.
