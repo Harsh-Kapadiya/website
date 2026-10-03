@@ -43,6 +43,7 @@ export function ChatWidget() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [leadSent, setLeadSent] = useState(false); // tells the backend not to save a second lead this chat
   const inputRef = useRef<HTMLInputElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -87,9 +88,13 @@ export function ChatWidget() {
     try {
       const out = await apiPost<{ reply: string; leadSaved: boolean }>('/api/chat', {
         messages: history.map((m) => ({ ...m, content: m.content.slice(0, m.role === 'user' ? 1000 : 2500) })),
+        leadSent,
       });
       setMessages((m) => [...m, { role: 'assistant', content: out.reply }]);
-      if (out.leadSaved) trackEvent('generate_lead', { location: 'chat' });
+      if (out.leadSaved) {
+        setLeadSent(true);
+        trackEvent('generate_lead', { location: 'chat' });
+      }
     } catch (e) {
       // Drop the unanswered message (keeps turns alternating) and give the text back for a retry.
       setMessages((m) => m.slice(0, -1));
@@ -207,7 +212,7 @@ export function ChatWidget() {
               <Send size={16} aria-hidden />
             </button>
           </form>
-          <p className="px-5 pb-3 text-[0.6875rem] text-white/35">Chats aren't saved. Only details you ask to send reach Harsh.</p>
+          <p className="px-5 pb-3 text-[0.6875rem] text-white/35">Chats aren't saved here, but Google may use them to improve Gemini — please don't share sensitive info.</p>
         </div>
       )}
     </>

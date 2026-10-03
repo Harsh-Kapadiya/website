@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { validate, publicMessage, contactSpec, feedbackSpec } from './validate.js';
 import { notifyOwner, mailerConfigured } from './mailer.js';
-import { validateChat, loadKnowledge, runChat } from './chat.js';
+import { validateChat, loadSections, runChat } from './chat.js';
 
 // ---------- config: fail fast, fail closed ----------
 const env = process.env;
@@ -38,11 +38,14 @@ if (missing.length) {
 if (!mailerConfigured) console.warn('[config] email not configured (OWNER_EMAIL + RESEND_API_KEY or SMTP_*) — submissions save but no email is sent');
 
 // Chat assistant is optional: without a key the endpoint answers 503 and the widget shows "offline".
-const chatKey = env.ANTHROPIC_API_KEY;
-const chatModel = env.CHAT_MODEL || 'claude-haiku-4-5-20251001';
+const chatKey = env.GEMINI_API_KEY;
+// Primary model, then a lighter one if the first is out of free quota.
+const chatModels = [env.GEMINI_MODEL || 'gemini-3.8-flash', env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash-lite'].filter(
+  (m, i, all) => m && all.indexOf(m) === i
+);
 // Links the assistant shares: the first non-localhost allowed origin (your live site).
 const siteUrl = [...allowedOrigins].find((o) => o.startsWith('https://')) || '';
-if (!chatKey) console.warn('[config] ANTHROPIC_API_KEY not set — website chat is disabled');
+if (!chatKey) console.warn('[config] GEMINI_API_KEY not set — website chat is disabled');
 
 const db =
   env.SUPABASE_URL && supabaseKey
@@ -183,14 +186,16 @@ app.post('/api/chat', requireChat, chatPerIp, chatDaily, async (req, res) => {
   if (data.website) return res.json({ reply: 'Thanks!', leadSaved: false }); // honeypot
 
   try {
-    const knowledge = await loadKnowledge(db, siteUrl);
+    const sections = await loadSections(db, siteUrl);
     const out = await runChat({
-      messages: data.messages, knowledge, siteUrl, apiKey: chatKey, model: chatModel,
+      messages: data.messages, sections, siteUrl, leadSent: data.leadSent, apiKey: chatKey, models: chatModels,
       saveLead: (input) => saveChatLead(input, req.id),
       // Token counts only — conversation text is never logged or stored.
-      onUsage: (u) => log('info', 'chat usage', { requestId: req.id, input: u?.input_tokens, cached: u?.cache_read_input_tokens, output: u?.output_tokens }),
+      onUsage: (u) => log('info', 'chat usage', { requestId: req.id, model: u.model, input: u.promptTokenCount, output: u.candidatesTokenCount, thinking: u.thoughtsTokenCount }),
     });
-    res.json(out);
+    // Which fact check (if any) replaced the model's reply — useful to tune content, contains no chat text.
+    if (out.blocked) log('info', 'chat guard', { requestId: req.id, check: out.blocked });
+    res.json({ reply: out.reply, leadSaved: out.leadSaved });
   } catch (e) {
     log('error', 'chat failed', { requestId: req.id, detail: e.message });
     res.status(502).json({ error: 'CHAT_FAILED', message: 'The assistant is having trouble right now — please try again or use the contact form.', requestId: req.id });

@@ -10,7 +10,7 @@
       "url": "https://github.com/Harsh-Kapadiya/website",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "35a6ed1c20986b46f33c5ee4701e24a9b47b3bbb"
+      "revision": "10a30329f9d903b18db3e775fcf134e0bab3e64b"
     }
   },
   "components": [
@@ -239,14 +239,14 @@
       "sources": [
         {
           "path": "backend/src/index.js",
-          "line": 127,
-          "end_line": 150,
+          "line": 130,
+          "end_line": 153,
           "label": "contact + feedback routes"
         },
         {
           "path": "backend/src/index.js",
-          "line": 180,
-          "end_line": 198,
+          "line": 183,
+          "end_line": 203,
           "label": "chat route, rate-limited"
         },
         {
@@ -258,11 +258,11 @@
       ]
     },
     {
-      "id": "claude",
+      "id": "gemini",
       "type": "external",
-      "label": "Claude API",
-      "sublabel": "Haiku 4.5 · chat replies",
-      "tag": "Anthropic",
+      "label": "Gemini API",
+      "sublabel": "free tier · chat replies",
+      "tag": "Google",
       "pos": [
         620,
         780
@@ -274,15 +274,21 @@
       "sources": [
         {
           "path": "backend/src/chat.js",
-          "line": 127,
-          "end_line": 164,
-          "label": "Messages API + save_lead tool"
+          "line": 233,
+          "end_line": 255,
+          "label": "Gemini call: JSON schema, temperature 0.2"
         },
         {
           "path": "backend/src/chat.js",
-          "line": 70,
-          "end_line": 85,
-          "label": "answers from CMS content"
+          "line": 195,
+          "end_line": 226,
+          "label": "fact-checks every reply before it is shown"
+        },
+        {
+          "path": "backend/src/chat.js",
+          "line": 261,
+          "end_line": 302,
+          "label": "lighter free model when quota runs out"
         }
       ]
     }
@@ -388,7 +394,7 @@
     },
     {
       "from": "api",
-      "to": "claude",
+      "to": "gemini",
       "label": "chat (HTTPS)",
       "variant": "dashed"
     }
@@ -419,6 +425,15 @@
         "Browsers hold only the publishable key; the secret key lives on Render",
         "RLS: anyone reads content and approved reviews; only admins write",
         "Forms and chat are validated and rate-limited; chat has a daily cap and stores no transcripts"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "AI chat",
+      "items": [
+        "Gemini free tier; a lighter free model takes over when quota runs out",
+        "Replies must cite site sections; code blocks invented prices, links, emails, phones and numbers",
+        "Leads are saved only after the visitor confirms, once per chat"
       ]
     }
   ]

@@ -108,8 +108,8 @@ The entire website can be updated from the admin panel without modifying the fro
                                      ┌──────────────┴──────────────┐
                                      ▼                             ▼
                            ┌───────────────────┐         ┌──────────────────┐
-                           │      Resend       │         │    Claude API    │
-                           │ Email Notification│         │ Haiku 4.5 · chat │
+                           │      Resend       │         │    Gemini API    │
+                           │ Email Notification│         │ free tier · chat │
                            └───────────────────┘         └──────────────────┘
 
 
@@ -136,7 +136,7 @@ The entire website can be updated from the admin panel without modifying the fro
 * Row Level Security controls what each user can access.
 * The Express backend handles operations that should never expose privileged credentials to the browser.
 * Contact and review submissions are validated, stored and forwarded through email.
-* The AI chat assistant answers from the site content via Claude; confirmed leads go to the same inbox.
+* The AI chat assistant answers from the site content via Google Gemini (free tier); code-level fact checks block made-up details, and confirmed leads go to the same inbox.
 * The admin panel is a separate application served under `/admin-panel/`.
 * During deployment, every sitemap URL is pre-rendered into real HTML.
 * React takes over in the browser and refreshes content dynamically.
@@ -317,30 +317,85 @@ Supported:
 
 ## 💬 AI Chat Assistant
 
-A chat button (bottom-right on every page) opens **Harsh's AI assistant**. It answers visitors' questions about Harsh's work, services and experience, and can pass a message to him.
+A chat button (bottom-right on every page) opens **Harsh's AI assistant**. It answers visitors' questions about Harsh's work, services and experience, and can pass a message to him. It runs on **Google Gemini's free tier**, so it costs ₹0.
 
 ```text
-Visitor ──► ChatWidget ──POST /api/chat──► Express API (Render) ──► Claude Haiku 4.5
-                                               │
-                                               ├── reads the site content from Supabase (cached 5 min)
-                                               └── save_lead ──► contact_messages + email to you
+Visitor ──► ChatWidget ──POST /api/chat──► Express API (Render)
+                                             │
+                                             ├─ 1. validate the chat (roles, sizes, rate limits)
+                                             ├─ 2. load site content from Supabase (cached 5 min), label every fact [id]
+                                             ├─ 3. ask Gemini ──► gemini-3.8-flash (free)
+                                             │                    └─ free quota used up? → gemini-3.5-flash-lite (free)
+                                             ├─ 4. fact-check the reply (guardReply) → swap it for a safe reply if anything is unbacked
+                                             └─ 5. visitor confirmed? → contact_messages + email to you
 ```
 
-* **Grounded in your CMS.** Every reply is built only from the site content (copy, services, case studies, resume, approved reviews, socials), so admin-panel edits reach the assistant within 5 minutes — no redeploy.
-* **Honest by design.** It says it's an AI assistant, never claims to be Harsh, and never invents prices, timelines, availability or clients — it offers to pass the question on instead.
-* **Turns chats into leads.** When a visitor wants to hire Harsh, it asks for name, email and project, repeats them back, and saves them **only after the visitor confirms**. Leads land in admin → *Inbox* marked `[via website chat]`, you get the usual email, and GA4 records `generate_lead` (`location: chat`).
-* **Private.** Conversations are not stored or logged — only token counts, for cost tracking. Nothing is kept in the browser either.
-* **Cost-capped.** 20 messages per visitor per 15 minutes, `CHAT_DAILY_LIMIT` replies per day overall, short replies (≤ 600 tokens), and the site content is prompt-cached. Rough cost: ₹1–2 per conversation.
-* **Graceful.** Opening the chat wakes the Render server (free plan sleeps); a "waking up" note appears if that takes over 1.5 s. Without `ANTHROPIC_API_KEY` the widget shows "offline" and points to the contact page.
+* **Grounded in your CMS.** Replies are built only from the site content: copy, services, case studies, skills, resume, stats, clients, approved reviews and socials. Admin-panel edits reach the assistant within 5 minutes, with no redeploy.
+* **Checked before it's shown.** Every reply passes the code-level fact checks below before a visitor sees it.
+* **Honest by design.** It says it's an AI assistant and never claims to be Harsh. Asked about prices, timelines or anything not on the site, it offers to pass the question on.
+* **Turns chats into leads.** When a visitor wants to hire Harsh, it asks for their name, email and project, repeats them back, and saves them **only after the visitor confirms**, at most once per chat. Leads land in admin → *Inbox* marked `[via website chat]`, you get the usual email, and GA4 records `generate_lead` (`location: chat`).
+* **Data use.** Conversations aren't stored in your database or logs; only token counts are logged. **On the free tier, Google may use prompts and replies to improve its products**, so the widget tells visitors not to share sensitive info.
+* **Free and capped.** Limits:
+  * 20 messages per visitor per 15 minutes.
+  * `CHAT_DAILY_LIMIT` replies per day overall (default `300`).
+  * Google's own free-tier limits per model (see AI Studio).
 
-**Turn it on**
+  When the main model's free quota runs out, the lighter model takes over. If both run out, the widget points visitors to the contact form.
+* **Graceful.** Opening the chat wakes the Render server (the free plan sleeps). A "waking up" note appears if that takes over 1.5 s. Without `GEMINI_API_KEY`, the widget shows "offline" and points to the contact page.
 
-1. [Claude Console](https://console.anthropic.com) → sign in → **Billing**: add a card and credits; set a **monthly spend limit**.
-2. **API Keys → Create Key** → copy it (shown once).
-3. Render → your service → **Environment** → add `ANTHROPIC_API_KEY` (and optionally `CHAT_DAILY_LIMIT`) → **Save** (redeploys).
-4. Open the site → chat button → ask "What does Harsh do?". Then test a lead: "I want to hire Harsh" → give a test name/email → confirm → check admin → *Inbox* and your email.
+### 🛡️ How it avoids making things up
 
-Code: `backend/src/chat.js` (validation, knowledge, prompt, tool loop), `/api/chat` in `backend/src/index.js`, `frontend/src/components/ChatWidget.tsx`.
+No language model is 100% hallucination-proof, so the bot doesn't rely on the model behaving. It uses five layers, and the last three are plain code, not AI:
+
+| # | Layer | What it does |
+| - | ----- | ------------ |
+| 1 | **Grounding** | The model only sees your site content. Each fact is labelled (`[project:kiln]`, `[services]`, `[copy:contact]` …) and the model is told to use nothing else. |
+| 2 | **Structured answer** | Gemini must return JSON matching a schema: `kind`, `sources`, `reply`, `lead`. Temperature `0.2` keeps it literal. |
+| 3 | **Citations** | A factual answer (`kind: "answer"`) must cite at least one real section id. No citation, no answer. |
+| 4 | **Fact checks** (`guardReply`) | Every link, email, phone number, price and multi-digit number in the reply must appear in your content or in what the visitor typed. "N years / months / %" claims are checked too. |
+| 5 | **Lead safety** | A lead is saved only when the visitor confirmed (`lead_confirmed`), the details pass the contact form's validator, and no lead was already sent in that chat. |
+
+If a check fails, the visitor sees a safe reply instead: *"I don't have that information about Harsh. Want me to pass your question to him?"* For prices, it offers to pass on their details. Broken or cut-off output gets "Could you rephrase that?". Render logs record which check fired (`chat guard` → `check: "unknown-number"`), never the conversation.
+
+What can still slip through: loose wording or paraphrasing of things that *are* in your content. The bot is only as right as your site, so keep the admin content accurate.
+
+### 🔑 Turn it on (free)
+
+1. Open [Google AI Studio](https://aistudio.google.com/app/apikey) and sign in with your Google account.
+2. **Create API key** → choose (or create) a Google Cloud project → copy the key.
+3. **Leave billing OFF** for that project. Turning billing on moves it to the paid tier. On the free tier, hitting the limit just returns "quota exceeded"; you never get a bill.
+4. Render → your service → **Environment** → add `GEMINI_API_KEY` (and optionally `CHAT_DAILY_LIMIT`) → **Save** (this redeploys). Delete the old `ANTHROPIC_API_KEY` if it's still there.
+5. Open `https://<your-render-url>/api/health` and check it says `"chat": true`.
+6. Open the site → chat button → ask "What does Harsh do?". Then test a lead: "I want to hire Harsh" → give a test name and email → confirm → check admin → *Inbox* and your email.
+
+**Key rules:**
+* Never paste the key into a chat, code or GitHub. It lives only in Render's environment and in your local `backend/.env`, which git ignores.
+* If the key ever leaks, delete it in AI Studio and create a new one.
+* Your free-tier limits for each model are shown in AI Studio.
+
+### 🧪 Check it against your real content
+
+```bash
+cd backend
+# backend/.env needs SUPABASE_URL, SUPABASE_SECRET_KEY and GEMINI_API_KEY
+npm run chat:eval
+```
+
+This asks the real model 11 tricky questions about your live content:
+* hourly rate
+* "did he work at Google?"
+* phone number
+* years of experience
+* a Dribbble link
+* a prompt injection
+* a Python request
+* a case study
+* a Hinglish question
+* a two-turn lead
+
+For each one it prints the question, the reply a visitor would see, and whether the guard had to step in. It ends with a pass count and exits non-zero on any failure. It uses about 12 requests of your free quota, and nothing is saved or emailed. Run it again after big content edits.
+
+Code: `backend/src/chat.js` (validation, knowledge sections, prompt, Gemini call, `guardReply`), `/api/chat` in `backend/src/index.js`, `frontend/src/components/ChatWidget.tsx`, `backend/scripts/chat-eval.mjs`.
 
 ***
 
@@ -508,9 +563,10 @@ Each application has its own environment configuration.
 | `SMTP_USER`           |   Local  | SMTP username               |
 | `SMTP_PASS`           |   Local  | SMTP password               |
 | `SMTP_FROM`           |   Local  | Sender address              |
-| `ANTHROPIC_API_KEY`   |   Chat   | Turns on the AI chat assistant (Claude Console → API Keys) |
+| `GEMINI_API_KEY`      |   Chat   | Turns on the AI chat assistant (Google AI Studio → API keys; keep billing off) |
 | `CHAT_DAILY_LIMIT`    | Optional | Max assistant replies per day, all visitors (default `300`) |
-| `CHAT_MODEL`          | Optional | Defaults to `claude-haiku-4-5-20251001` |
+| `GEMINI_MODEL`        | Optional | Defaults to `gemini-3.8-flash` |
+| `GEMINI_FALLBACK_MODEL` | Optional | Used when the main model's free quota runs out (default `gemini-3.5-flash-lite`) |
 | `NODE_ENV`            |   Local  | Development mode            |
 | `PORT`                | Optional | Defaults to `8787`          |
 
@@ -890,9 +946,12 @@ The backend test suite covers:
 * ratings
 * control characters
 * Resend mailer behavior
-* chat payload validation (forged roles, alternation, sizes)
-* chat lead flow: saved only on a valid `save_lead` call, errors fed back to the model
-* the request sent to Claude (cached system prompt, tool, conversation)
+* chat payload validation (forged roles, alternation, sizes, `leadSent`)
+* hallucination guard: uncited answers, invented prices, links, emails, phones, numbers and "N years" claims are replaced; real facts and the visitor's own details pass
+* chat lead flow: saved only after the visitor confirms, once per chat, invalid details sent back to the visitor
+* the request sent to Gemini (grounded instructions, JSON schema, temperature 0.2), fallback model on quota errors, safety blocks and broken JSON
+
+Live check against the real model with your real content: `npm run chat:eval` (see [AI Chat Assistant](#-ai-chat-assistant)).
 
 ### Frontend
 
@@ -971,8 +1030,9 @@ The production build was verified for:
 | `.env` changes don't work           | Restart the development server                    |
 | Empty HTML from `view-source:`      | Page wasn't included in the last pre-render build |
 | Search Console verification fails   | Redeploy after setting verification variable      |
-| Chat says "offline"                 | `ANTHROPIC_API_KEY` not set on Render (check `/api/health` → `"chat":true`) |
-| Chat: "having trouble right now"    | Render logs → `chat failed`: wrong key, no credits, or spend limit reached |
+| Chat says "offline"                 | `GEMINI_API_KEY` not set on Render (check `/api/health` → `"chat":true`) |
+| Chat: "having trouble right now"    | Render logs → `chat failed`: wrong or deleted key (`400`/`403`), or both models' free quota used up (`429`), so wait for the reset |
+| Chat keeps saying "I don't have that information" | The fact isn't in your admin content, or the guard blocked an unbacked number/link. Render logs → `chat guard` shows which check fired |
 | Chat: "resting for today"           | `CHAT_DAILY_LIMIT` reached — raise it or wait until tomorrow |
 | Chat answer is outdated             | Content is cached for 5 minutes after an admin edit |
 
@@ -1035,6 +1095,7 @@ A CSP has not been added yet because the final allowlist needs to account for:
 * Helmet
 * Resend
 * Nodemailer
+* Google Gemini API (free tier)
 
 ### Database & Authentication
 
