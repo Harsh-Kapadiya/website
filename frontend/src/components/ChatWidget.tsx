@@ -7,7 +7,7 @@ import { trackEvent } from '@/lib/analytics';
 type Msg = { role: 'user' | 'assistant'; content: string };
 type Status = 'idle' | 'checking' | 'ready' | 'offline';
 
-const GREETING = "Hi! I'm Harsh's AI assistant. Ask me about his work, services or experience — or leave him a message.";
+const GREETING = "Hi! I'm MIATA a AI assistant. Ask me about his work, services or experience — or leave him a message.";
 const SUGGESTIONS = ['What does Harsh Kapadiya do?', 'Show me a case study', 'I want to hire Harsh Kapadiya'];
 // The server accepts up to 12 turns; an odd count keeps "starts and ends with the visitor".
 const MAX_HISTORY = 11;
