@@ -10,7 +10,7 @@
       "url": "https://github.com/Harsh-Kapadiya/website",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "2a371fe260c56ea942d07e01cf17f11c6a654551"
+      "revision": "35a6ed1c20986b46f33c5ee4701e24a9b47b3bbb"
     }
   },
   "components": [
@@ -160,8 +160,8 @@
         {
           "path": "frontend/src/lib/api.ts",
           "line": 4,
-          "end_line": 12,
-          "label": "forms POST to the API"
+          "end_line": 20,
+          "label": "forms + chat POST to the API"
         }
       ]
     },
@@ -226,7 +226,7 @@
       "id": "api",
       "type": "backend",
       "label": "Forms API",
-      "sublabel": "Express 5 · /api/*",
+      "sublabel": "Express 5 · forms + chat",
       "tag": "Render",
       "pos": [
         620,
@@ -239,20 +239,50 @@
       "sources": [
         {
           "path": "backend/src/index.js",
-          "line": 116,
-          "end_line": 140,
+          "line": 127,
+          "end_line": 150,
           "label": "contact + feedback routes"
         },
         {
           "path": "backend/src/index.js",
-          "line": 101,
-          "label": "insert with secret key"
+          "line": 180,
+          "end_line": 198,
+          "label": "chat route, rate-limited"
         },
         {
           "path": "backend/src/index.js",
-          "line": 14,
-          "end_line": 25,
+          "line": 15,
+          "end_line": 26,
           "label": "secret key + CORS allow-list"
+        }
+      ]
+    },
+    {
+      "id": "claude",
+      "type": "external",
+      "label": "Claude API",
+      "sublabel": "Haiku 4.5 · chat replies",
+      "tag": "Anthropic",
+      "pos": [
+        620,
+        780
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/src/chat.js",
+          "line": 127,
+          "end_line": 164,
+          "label": "Messages API + save_lead tool"
+        },
+        {
+          "path": "backend/src/chat.js",
+          "line": 70,
+          "end_line": 85,
+          "label": "answers from CMS content"
         }
       ]
     }
@@ -303,7 +333,7 @@
     {
       "from": "site",
       "to": "api",
-      "label": "POST /api/contact · /api/feedback",
+      "label": "POST forms · chat",
       "variant": "emphasis",
       "fromSide": "bottom",
       "toSide": "left"
@@ -355,6 +385,12 @@
       "to": "site",
       "label": "HTML per URL",
       "variant": "dashed"
+    },
+    {
+      "from": "api",
+      "to": "claude",
+      "label": "chat (HTTPS)",
+      "variant": "dashed"
     }
   ],
   "cards": [
@@ -382,7 +418,7 @@
       "items": [
         "Browsers hold only the publishable key; the secret key lives on Render",
         "RLS: anyone reads content and approved reviews; only admins write",
-        "Forms: validation, honeypot, per-IP and global rate limits"
+        "Forms and chat are validated and rate-limited; chat has a daily cap and stores no transcripts"
       ]
     }
   ]

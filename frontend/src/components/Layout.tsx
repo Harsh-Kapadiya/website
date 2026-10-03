@@ -4,6 +4,7 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { Breadcrumbs, useCrumbs } from './Breadcrumbs';
 import { StickyMobileCta } from './StickyMobileCta';
+import { ChatWidget } from './ChatWidget';
 import { SiteSchema } from './SiteSchema';
 import { CustomCursor } from './interactions/CustomCursor';
 import { trackPageView } from '@/lib/analytics';
@@ -33,6 +34,7 @@ export function Layout() {
       </main>
       <Footer />
       <StickyMobileCta />
+      <ChatWidget />
     </div>
   );
 }

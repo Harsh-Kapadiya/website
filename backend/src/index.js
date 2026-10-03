@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { validate, publicMessage, contactSpec, feedbackSpec } from './validate.js';
 import { notifyOwner, mailerConfigured } from './mailer.js';
+import { validateChat, loadKnowledge, runChat } from './chat.js';
 
 // ---------- config: fail fast, fail closed ----------
 const env = process.env;
@@ -35,6 +36,13 @@ if (missing.length) {
   console.warn(`[config] dev mode, missing: ${missing.join(', ')} — form writes will fail`);
 }
 if (!mailerConfigured) console.warn('[config] email not configured (OWNER_EMAIL + RESEND_API_KEY or SMTP_*) — submissions save but no email is sent');
+
+// Chat assistant is optional: without a key the endpoint answers 503 and the widget shows "offline".
+const chatKey = env.ANTHROPIC_API_KEY;
+const chatModel = env.CHAT_MODEL || 'claude-haiku-4-5-20251001';
+// Links the assistant shares: the first non-localhost allowed origin (your live site).
+const siteUrl = [...allowedOrigins].find((o) => o.startsWith('https://')) || '';
+if (!chatKey) console.warn('[config] ANTHROPIC_API_KEY not set — website chat is disabled');
 
 const db =
   env.SUPABASE_URL && supabaseKey
@@ -68,6 +76,8 @@ app.use(
     methods: ['GET', 'POST'],
   })
 );
+// Chat carries a short conversation history, so it gets a larger (still small) body limit.
+app.use('/api/chat', express.json({ limit: '48kb' }));
 app.use(express.json({ limit: '16kb' }));
 
 // Per-IP limit per form, plus a global ceiling so rotating IPs can't flood
@@ -80,7 +90,8 @@ const globalCap = rateLimit({ windowMs: 15 * 60_000, limit: 100, keyGenerator: (
   legacyHeaders: false, message: { error: 'RATE_LIMITED', message: 'The form is busy right now — please try again shortly.' } });
 
 // ---------- health ----------
-app.get('/api/health', (_req, res) => res.json({ ok: true })); // liveness: process is up
+// liveness: process is up. `chat` lets the widget show "offline" instead of failing on send.
+app.get('/api/health', (_req, res) => res.json({ ok: true, chat: Boolean(chatKey) }));
 
 app.get('/api/ready', async (_req, res) => {
   // readiness: can we actually reach the database?
@@ -137,6 +148,54 @@ app.post('/api/feedback', requireDb, perIp(), globalCap, (req, res) =>
     }),
   })
 );
+
+// ---------- chat assistant ----------
+const chatPerIp = rateLimit({ windowMs: 15 * 60_000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'You’re sending messages quickly — please wait a few minutes.' } });
+// Cost ceiling: whatever happens, at most CHAT_DAILY_LIMIT replies per day across all visitors.
+const chatDaily = rateLimit({ windowMs: 24 * 60 * 60_000, limit: Number(env.CHAT_DAILY_LIMIT) || 300, keyGenerator: () => 'chat-daily',
+  standardHeaders: 'draft-8', legacyHeaders: false,
+  message: { error: 'RATE_LIMITED', message: 'The assistant is resting for today — please use the contact form.' } });
+const requireChat = (req, res, next) =>
+  chatKey && db ? next() : res.status(503).json({ error: 'CHAT_UNAVAILABLE', message: 'The assistant is offline — please use the contact form.', requestId: req.id });
+
+// A confirmed lead from the chat lands exactly like a contact-form message.
+async function saveChatLead(input, requestId) {
+  const { data, error, field } = validate({ name: input.name, email: input.email, message: input.message }, contactSpec);
+  if (error) return { ok: false, error: `${publicMessage(error, field)} Ask the visitor to correct it.` };
+  const row = { name: data.name, email: data.email, message: `[via website chat]\n\n${data.message}` };
+  const { error: dbError } = await db.from('contact_messages').insert(row);
+  if (dbError) {
+    log('error', 'chat lead insert failed', { requestId, code: dbError.code, detail: dbError.message });
+    return { ok: false, error: 'Saving failed. Suggest the contact page instead.' };
+  }
+  notifyOwner({
+    subject: `New lead from the website chat: ${row.name}`,
+    replyTo: row.email,
+    text: `Name: ${row.name}\nEmail: ${row.email}\n\n${data.message}\n\n— Sent by the website chat assistant after the visitor confirmed. Reply to this email to answer directly.`,
+  }).catch((e) => log('error', 'notification failed', { requestId, table: 'contact_messages', detail: e.message }));
+  return { ok: true };
+}
+
+app.post('/api/chat', requireChat, chatPerIp, chatDaily, async (req, res) => {
+  const { data, error } = validateChat(req.body);
+  if (error) return res.status(400).json({ error, message: publicMessage(error, 'message'), requestId: req.id });
+  if (data.website) return res.json({ reply: 'Thanks!', leadSaved: false }); // honeypot
+
+  try {
+    const knowledge = await loadKnowledge(db, siteUrl);
+    const out = await runChat({
+      messages: data.messages, knowledge, siteUrl, apiKey: chatKey, model: chatModel,
+      saveLead: (input) => saveChatLead(input, req.id),
+      // Token counts only — conversation text is never logged or stored.
+      onUsage: (u) => log('info', 'chat usage', { requestId: req.id, input: u?.input_tokens, cached: u?.cache_read_input_tokens, output: u?.output_tokens }),
+    });
+    res.json(out);
+  } catch (e) {
+    log('error', 'chat failed', { requestId: req.id, detail: e.message });
+    res.status(502).json({ error: 'CHAT_FAILED', message: 'The assistant is having trouble right now — please try again or use the contact form.', requestId: req.id });
+  }
+});
 
 // ---------- fallbacks ----------
 app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND', requestId: req.id }));
