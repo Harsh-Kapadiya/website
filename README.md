@@ -60,7 +60,7 @@ It is more than a static portfolio website. The project includes:
 The entire website can be updated from the admin panel without modifying the frontend code.
 
 > **Live:** https://harsh-kapadiya.vercel.app
-> **Admin:** `https://harsh-kapadiya.vercel.app/admin-panel/`
+
 
 ***
 
@@ -90,8 +90,8 @@ The entire website can be updated from the admin panel without modifying the fro
                                     ▼
                          ┌──────────────────────┐
                          │       Vercel         │
-                         │  React + TypeScript   │
-                         │    Pre-rendered HTML  │
+                         │  React + TypeScript  │
+                         │    Pre-rendered HTML │
                          └──────────┬───────────┘
                                     │
                     ┌───────────────┴───────────────┐
@@ -102,13 +102,15 @@ The entire website can be updated from the admin panel without modifying the fro
           │                  │             │     Render       │
           │ PostgreSQL + RLS │             │                  │
           │ Auth + Storage   │             │ Contact / Review │
-          └──────────────────┘             └────────┬─────────┘
-                                                     │
-                                                     ▼
-                                            ┌──────────────────┐
-                                            │      Resend      │
-                                            │ Email Notification│
-                                            └──────────────────┘
+          └──────────────────┘             │   + AI chat      │
+                                           └────────┬─────────┘
+                                                    │
+                                     ┌──────────────┴──────────────┐
+                                     ▼                             ▼
+                           ┌───────────────────┐         ┌──────────────────┐
+                           │      Resend       │         │    Claude API    │
+                           │ Email Notification│         │ Haiku 4.5 · chat │
+                           └───────────────────┘         └──────────────────┘
 
 
                          ┌──────────────────────┐
@@ -134,6 +136,7 @@ The entire website can be updated from the admin panel without modifying the fro
 * Row Level Security controls what each user can access.
 * The Express backend handles operations that should never expose privileged credentials to the browser.
 * Contact and review submissions are validated, stored and forwarded through email.
+* The AI chat assistant answers from the site content via Claude; confirmed leads go to the same inbox.
 * The admin panel is a separate application served under `/admin-panel/`.
 * During deployment, every sitemap URL is pre-rendered into real HTML.
 * React takes over in the browser and refreshes content dynamically.
@@ -312,6 +315,35 @@ Supported:
 
 ***
 
+## 💬 AI Chat Assistant
+
+A chat button (bottom-right on every page) opens **Harsh's AI assistant**. It answers visitors' questions about Harsh's work, services and experience, and can pass a message to him.
+
+```text
+Visitor ──► ChatWidget ──POST /api/chat──► Express API (Render) ──► Claude Haiku 4.5
+                                               │
+                                               ├── reads the site content from Supabase (cached 5 min)
+                                               └── save_lead ──► contact_messages + email to you
+```
+
+* **Grounded in your CMS.** Every reply is built only from the site content (copy, services, case studies, resume, approved reviews, socials), so admin-panel edits reach the assistant within 5 minutes — no redeploy.
+* **Honest by design.** It says it's an AI assistant, never claims to be Harsh, and never invents prices, timelines, availability or clients — it offers to pass the question on instead.
+* **Turns chats into leads.** When a visitor wants to hire Harsh, it asks for name, email and project, repeats them back, and saves them **only after the visitor confirms**. Leads land in admin → *Inbox* marked `[via website chat]`, you get the usual email, and GA4 records `generate_lead` (`location: chat`).
+* **Private.** Conversations are not stored or logged — only token counts, for cost tracking. Nothing is kept in the browser either.
+* **Cost-capped.** 20 messages per visitor per 15 minutes, `CHAT_DAILY_LIMIT` replies per day overall, short replies (≤ 600 tokens), and the site content is prompt-cached. Rough cost: ₹1–2 per conversation.
+* **Graceful.** Opening the chat wakes the Render server (free plan sleeps); a "waking up" note appears if that takes over 1.5 s. Without `ANTHROPIC_API_KEY` the widget shows "offline" and points to the contact page.
+
+**Turn it on**
+
+1. [Claude Console](https://console.anthropic.com) → sign in → **Billing**: add a card and credits; set a **monthly spend limit**.
+2. **API Keys → Create Key** → copy it (shown once).
+3. Render → your service → **Environment** → add `ANTHROPIC_API_KEY` (and optionally `CHAT_DAILY_LIMIT`) → **Save** (redeploys).
+4. Open the site → chat button → ask "What does Harsh do?". Then test a lead: "I want to hire Harsh" → give a test name/email → confirm → check admin → *Inbox* and your email.
+
+Code: `backend/src/chat.js` (validation, knowledge, prompt, tool loop), `/api/chat` in `backend/src/index.js`, `frontend/src/components/ChatWidget.tsx`.
+
+***
+
 # ⚡ Performance
 
 One of the main performance improvements was removing the heavy 3D experience from mobile devices.
@@ -476,6 +508,9 @@ Each application has its own environment configuration.
 | `SMTP_USER`           |   Local  | SMTP username               |
 | `SMTP_PASS`           |   Local  | SMTP password               |
 | `SMTP_FROM`           |   Local  | Sender address              |
+| `ANTHROPIC_API_KEY`   |   Chat   | Turns on the AI chat assistant (Claude Console → API Keys) |
+| `CHAT_DAILY_LIMIT`    | Optional | Max assistant replies per day, all visitors (default `300`) |
+| `CHAT_MODEL`          | Optional | Defaults to `claude-haiku-4-5-20251001` |
 | `NODE_ENV`            |   Local  | Development mode            |
 | `PORT`                | Optional | Defaults to `8787`          |
 
@@ -758,79 +793,6 @@ https://your-site.vercel.app/admin-panel/
 
 to the allowed redirect URLs.
 
-***
-
-# 🧪 Production Checklist
-
-Before considering the deployment complete:
-
-```text
-[ ] Contact form submits successfully
-[ ] Contact email arrives
-[ ] Contact row appears in Admin → Inbox
-[ ] Review submission works
-[ ] Review can be approved
-[ ] Approved review appears on website
-[ ] Admin content changes appear on public site
-[ ] /sitemap.xml works
-[ ] /robots.txt works
-[ ] Open Graph preview looks correct
-[ ] Rich Results Test passes
-[ ] Pre-rendered HTML contains page content
-[ ] Google Search Console is configured
-[ ] Admin route is not indexed
-```
-
-***
-
-# 🔍 Google Search Console
-
-Search Console can be configured after the production deployment.
-
-### Setup
-
-1. Open Google Search Console.
-2. Add the website as a URL-prefix property.
-3. Use the HTML tag verification method.
-4. Copy the `content` value.
-5. Add it to:
-
-```text
-VITE_GOOGLE_SITE_VERIFICATION
-```
-
-6. Redeploy Vercel.
-7. Verify ownership.
-8. Submit:
-
-```text
-sitemap.xml
-```
-
-9. Request indexing for important pages.
-
-### Optional
-
-Bing Webmaster Tools can import the site directly from Google Search Console.
-
-***
-
-# 🔑 Google Sign-In
-
-Google authentication is handled through Supabase Auth.
-
-### Setup
-
-1. Create an OAuth client in Google Cloud.
-2. Use the Supabase callback URL as the authorized redirect URI.
-3. Enable Google under Supabase Authentication Providers.
-4. Add the production admin URL to Supabase Redirect URLs.
-
-The callback URL follows:
-
-```text
-https://<project-ref>.supabase.co/auth/v1/callback
-```
 
 ### Important
 
@@ -928,6 +890,9 @@ The backend test suite covers:
 * ratings
 * control characters
 * Resend mailer behavior
+* chat payload validation (forged roles, alternation, sizes)
+* chat lead flow: saved only on a valid `save_lead` call, errors fed back to the model
+* the request sent to Claude (cached system prompt, tool, conversation)
 
 ### Frontend
 
@@ -981,6 +946,7 @@ The production build was verified for:
 * Sticky CTA
 * Admin routing
 * Mobile 3D fallback
+* Chat assistant: replies, clickable links, lead → GA event, offline state, keyboard (Esc / focus), mobile placement above the sticky CTA
 * Pre-rendered HTML
 * JavaScript-disabled rendering
 * Duplicate metadata prevention
@@ -1005,6 +971,10 @@ The production build was verified for:
 | `.env` changes don't work           | Restart the development server                    |
 | Empty HTML from `view-source:`      | Page wasn't included in the last pre-render build |
 | Search Console verification fails   | Redeploy after setting verification variable      |
+| Chat says "offline"                 | `ANTHROPIC_API_KEY` not set on Render (check `/api/health` → `"chat":true`) |
+| Chat: "having trouble right now"    | Render logs → `chat failed`: wrong key, no credits, or spend limit reached |
+| Chat: "resting for today"           | `CHAT_DAILY_LIMIT` reached — raise it or wait until tomorrow |
+| Chat answer is outdated             | Content is cached for 5 minutes after an admin edit |
 
 ***
 
