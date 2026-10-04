@@ -10,7 +10,7 @@
       "url": "https://github.com/Harsh-Kapadiya/website",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "10a30329f9d903b18db3e775fcf134e0bab3e64b"
+      "revision": "f3fc8ebb029f92f92f120ca978810cc16c56c61f"
     }
   },
   "components": [
@@ -274,20 +274,20 @@
       "sources": [
         {
           "path": "backend/src/chat.js",
-          "line": 233,
-          "end_line": 255,
-          "label": "Gemini call: JSON schema, temperature 0.2"
+          "line": 242,
+          "end_line": 263,
+          "label": "Gemini call with a JSON schema"
         },
         {
           "path": "backend/src/chat.js",
-          "line": 195,
-          "end_line": 226,
-          "label": "fact-checks every reply before it is shown"
+          "line": 196,
+          "end_line": 235,
+          "label": "fact-checks every reply and lead before use"
         },
         {
           "path": "backend/src/chat.js",
-          "line": 261,
-          "end_line": 302,
+          "line": 269,
+          "end_line": 310,
           "label": "lighter free model when quota runs out"
         }
       ]
@@ -433,7 +433,7 @@
       "items": [
         "Gemini free tier; a lighter free model takes over when quota runs out",
         "Replies must cite site sections; code blocks invented prices, links, emails, phones and numbers",
-        "Leads are saved only after the visitor confirms, once per chat"
+        "Leads are saved only after the visitor confirms, with the name and email they typed, once per chat"
       ]
     }
   ]

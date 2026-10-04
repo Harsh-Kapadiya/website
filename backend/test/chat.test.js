@@ -104,8 +104,24 @@ test('guard: greetings need no citation, but malformed output never reaches the 
 
 test('guard: a lead only comes through when the visitor confirmed', () => {
   const lead = { name: 'Asha', email: 'asha@kiln.co', message: 'Need a store.' };
-  assert.equal(guardReply(ok('Shall I send this?', [], 'lead_collecting', lead), ctx('asha@kiln.co')).lead, null);
-  assert.deepEqual(guardReply(ok('Sent! Harsh will reply within 24 hours.', [], 'lead_confirmed', lead), ctx('asha@kiln.co')).lead, lead);
+  const said = ctx('i am asha,  ASHA@kiln.co');
+  assert.equal(guardReply(ok('Shall I send this?', [], 'lead_collecting', lead), said).lead, null);
+  assert.deepEqual(guardReply(ok('Sent! Sir will reply within 24 hours.', [], 'lead_confirmed', lead), said).lead, lead);
+});
+
+test('guard: a lead with a name or email the visitor never typed is refused', () => {
+  const said = ctx('I am Asha, asha@kiln.co');
+  for (const lead of [
+    { name: 'Asha', email: 'asha@gmail.com', message: 'x' }, // invented email
+    { name: 'Asha Asha Asha Asha Asha Asha Asha Asha', email: 'asha@kiln.co', message: 'x' }, // looping output
+    { name: '', email: 'asha@kiln.co', message: 'x' },
+    { name: 'Asha', message: 'x' },
+  ]) {
+    const r = guardReply(ok('Sent!', [], 'lead_confirmed', lead), said);
+    assert.equal(r.blocked, 'lead-not-from-visitor', JSON.stringify(lead));
+    assert.equal(r.lead, null);
+    assert.match(r.reply, /type your name and email once more/);
+  }
 });
 
 // ---------- the Gemini call ----------
@@ -128,7 +144,7 @@ const geminiJson = (obj, finishReason = 'STOP') => ({
 const base = { sections, siteUrl: 'https://harsh.example', apiKey: 'AIza-test', models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'] };
 const noLead = async () => assert.fail('no lead expected');
 
-test('runChat sends grounded instructions, JSON schema, low temperature and the conversation', async () => {
+test('runChat sends grounded instructions, JSON schema and the conversation', async () => {
   const g = fakeGemini(geminiJson(ok('Harsh designs and builds websites.', ['services'])));
   const out = await runChat({ ...base, messages: [u('hi'), a('Hello!'), u('What do you do?')], saveLead: noLead, fetchImpl: g.fetchImpl });
   assert.deepEqual(out, { reply: 'Harsh designs and builds websites.', leadSaved: false, blocked: null });
@@ -136,9 +152,11 @@ test('runChat sends grounded instructions, JSON schema, low temperature and the 
   assert.equal(req.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent');
   assert.equal(req.headers['x-goog-api-key'], 'AIza-test');
   assert.match(req.body.systemInstruction.parts[0].text, /Use ONLY the facts in SITE CONTENT/);
+  assert.match(req.body.systemInstruction.parts[0].text, /You are MIATA/);
   assert.match(req.body.systemInstruction.parts[0].text, /\[services\] Services\n- Web Design/);
   assert.deepEqual(req.body.contents.map((c) => c.role), ['user', 'model', 'user']);
-  assert.equal(req.body.generationConfig.temperature, 0.2);
+  // Gemini 3's default temperature (1.0): lower values can make it loop (seen live as a garbled lead name).
+  assert.equal(req.body.generationConfig.temperature, undefined);
   assert.equal(req.body.generationConfig.responseMimeType, 'application/json');
   assert.deepEqual(req.body.generationConfig.responseSchema.required, ['kind', 'sources', 'reply']);
 });
@@ -179,9 +197,8 @@ test('runChat saves a confirmed lead once, and never again after leadSent', asyn
 
 test('runChat asks the visitor to fix a lead the contact-form validator rejects', async () => {
   const g = fakeGemini(geminiJson(ok('Sent!', [], 'lead_confirmed', { name: 'Asha', email: 'not-an-email', message: 'Hi' })));
-  const out = await runChat({ ...base, messages: [u('yes, my email is not-an-email')], saveLead: async () => ({ ok: false, error: 'Please check the email field.' }), fetchImpl: g.fetchImpl });
-  assert.equal(out.leadSaved, false);
-  assert.match(out.reply, /check the email field/);
+  const out = await runChat({ ...base, messages: [u('yes, I am Asha and my email is not-an-email')], saveLead: async () => ({ ok: false, error: 'Please check the email field. Could you check your details and confirm again?' }), fetchImpl: g.fetchImpl });
+  assert.deepEqual(out, { reply: 'Please check the email field. Could you check your details and confirm again?', leadSaved: false, blocked: 'invalid-lead' });
 });
 
 test('runChat handles safety blocks and broken JSON without leaking anything odd', async () => {

@@ -165,12 +165,12 @@ const requireChat = (req, res, next) =>
 // A confirmed lead from the chat lands exactly like a contact-form message.
 async function saveChatLead(input, requestId) {
   const { data, error, field } = validate({ name: input.name, email: input.email, message: input.message }, contactSpec);
-  if (error) return { ok: false, error: `${publicMessage(error, field)} Ask the visitor to correct it.` };
+  if (error) return { ok: false, error: `${publicMessage(error, field)} Could you check your details and confirm again?` };
   const row = { name: data.name, email: data.email, message: `[via website chat]\n\n${data.message}` };
   const { error: dbError } = await db.from('contact_messages').insert(row);
   if (dbError) {
     log('error', 'chat lead insert failed', { requestId, code: dbError.code, detail: dbError.message });
-    return { ok: false, error: 'Saving failed. Suggest the contact page instead.' };
+    return { ok: false, error: "Sorry, I couldn't send that right now. Please use the contact page instead." };
   }
   notifyOwner({
     subject: `New lead from the website chat: ${row.name}`,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 test('notifyOwner sends via Resend when RESEND_API_KEY is set', async () => {
   process.env.RESEND_API_KEY = 're_test';
-  process.env.OWNER_EMAIL = 'owner@example.com';
+  process.env.OWNER_EMAIL = 'harsh2021800@gmail.com';
   const calls = [];
   globalThis.fetch = async (url, init) => {
     calls.push({ url, init });
@@ -16,8 +16,8 @@ test('notifyOwner sends via Resend when RESEND_API_KEY is set', async () => {
   const body = JSON.parse(calls[0].init.body);
   assert.equal(calls[0].url, 'https://api.resend.com/emails');
   assert.equal(calls[0].init.headers.Authorization, 'Bearer re_test');
-  assert.equal(body.to, 'owner@example.com');
-  assert.equal(body.subject, 'Hi Bcc: x@evil.com'); // header injection flattened
+  assert.equal(body.to, 'harsh2021800@gmail.com');
+  assert.equal(body.subject, 'Hi Bcc: x@evil.com');
   assert.equal(body.reply_to, 'v@example.com');
 
   globalThis.fetch = async () => new Response('bad key', { status: 403 });

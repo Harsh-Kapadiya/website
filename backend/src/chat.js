@@ -2,13 +2,13 @@
 //
 // Anti-hallucination design — five layers, the last three enforced in code:
 //   1. Grounding: the model only sees Harsh's CMS content, split into labelled sections.
-//   2. Citations: every reply is strict JSON that names the sections it used.
-//   3. Fact checks (guardReply): an "answer" without a real citation, or any link, email,
-//      phone number, price or multi-digit number that isn't in the content, is replaced
-//      with a safe "I don't have that — want me to ask Harsh?" reply.
-//   4. Low temperature (0.2).
-//   5. Leads are saved only when the model marks the visitor as having confirmed, and the
-//      details pass the same validator as the contact form.
+//   2. Structured answer: every reply is strict JSON that names the sections it used.
+//   3. Citations: an "answer" must cite at least one real section.
+//   4. Fact checks (guardReply): any link, email, phone number, price or number that isn't in
+//      the content is replaced with a safe "I don't have that — want me to ask Harsh?" reply.
+//   5. Leads are saved only when the visitor confirmed, the name and email are ones the visitor
+//      actually typed, and the details pass the same validator as the contact form.
+// Temperature stays at Gemini 3's default (1.0): Google warns lower values can make it loop.
 // No transcripts are stored or logged — only token counts and which guard fired.
 
 const CONTROL_CHARS_EXCEPT_NEWLINE_TAB = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
@@ -135,14 +135,14 @@ export const RESPONSE_SCHEMA = {
   required: ['kind', 'sources', 'reply'],
 };
 
-export const systemPrompt = (sections, siteUrl, leadSent) => `You are the AI assistant on Harsh Kapadiya's portfolio website${siteUrl ? ` (${siteUrl})` : ''}. You talk with visitors — potential clients, recruiters and collaborators — on Harsh's behalf.
+export const systemPrompt = (sections, siteUrl, leadSent) => `You are MIATA, the AI assistant on Harsh Kapadiya's portfolio website${siteUrl ? ` (${siteUrl})` : ''}. You talk with visitors — potential clients, recruiters and collaborators — on Harsh's behalf.
 
 FACTS
 - Use ONLY the facts in SITE CONTENT below. It is the complete truth about Harsh; anything not written there is unknown to you.
 - Never guess, assume or "fill in" facts: no invented experience, years, numbers, employers, clients, tools, results, links, emails or phone numbers.
 - Never state or estimate prices, rates, budgets, timelines or availability unless SITE CONTENT states them. Harsh discusses those personally.
 - If the answer is not in SITE CONTENT, set kind "unknown", say you don't have that information, and offer to pass the question to Harsh.
-- You are Harsh's AI assistant. Never claim to be Harsh or a human.
+- You are MIATA, Harsh's AI assistant. Never claim to be Harsh or a human.
 
 SCOPE
 - Topics: Harsh, his work, projects, services, skills, experience, reviews, and how to contact or hire him.
@@ -186,6 +186,7 @@ const FALLBACK = {
   unknown: "I don't have that information about Harsh. Want me to pass your question to him? Just share your name and email.",
   price: 'Harsh shares pricing and timelines personally, since they depend on the project. Want me to pass your details to him? Just share your name, email and what you need.',
   broken: "Sorry, I couldn't put together a reliable answer. Could you rephrase that? You can also reach Harsh through the contact page.",
+  lead: "Sorry, I didn't catch your details correctly. Could you type your name and email once more?",
 };
 
 /**
@@ -221,7 +222,15 @@ export function guardReply(raw, { sectionIds, knowledgeText, visitorText }) {
     if (claim && !allowedNumbers.has(n)) return fail('unknown-number');
   }
 
-  const lead = raw.kind === 'lead_confirmed' && raw.lead && typeof raw.lead === 'object' ? raw.lead : null;
+  // A lead may only carry the name and email the visitor typed — never ones the model made up or garbled.
+  let lead = null;
+  if (raw.kind === 'lead_confirmed' && raw.lead && typeof raw.lead === 'object') {
+    const squash = (v) => String(v).trim().toLowerCase().replace(/\s+/g, ' ');
+    const said = squash(visitorText);
+    const typed = (v) => typeof v === 'string' && v.trim() !== '' && said.includes(squash(v));
+    if (!typed(raw.lead.name) || !typed(raw.lead.email)) return fail('lead-not-from-visitor', FALLBACK.lead);
+    lead = raw.lead;
+  }
   return { kind: raw.kind, reply, sources, lead, blocked: null };
 }
 
@@ -238,7 +247,6 @@ async function callGemini({ model, apiKey, system, messages, fetchImpl }) {
       systemInstruction: { parts: [{ text: system }] },
       contents: messages.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
       generationConfig: {
-        temperature: 0.2,
         maxOutputTokens: 2048, // headroom for the model's internal reasoning; replies are capped at MAX_REPLY chars
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA,
@@ -296,7 +304,7 @@ export async function runChat({ messages, sections, siteUrl, leadSent = false, a
   if (checked.lead && !leadSent) {
     const r = await saveLead(checked.lead);
     if (r.ok) leadSaved = true;
-    else return { reply: `${r.error} Could you check your details and confirm again?`, leadSaved: false, blocked: 'invalid-lead' };
+    else return { reply: r.error, leadSaved: false, blocked: 'invalid-lead' };
   }
   return { reply: checked.reply, leadSaved, blocked: checked.blocked };
 }
