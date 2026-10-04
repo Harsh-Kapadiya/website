@@ -6,6 +6,7 @@ import { useTable } from '@/hooks/useTable';
 import { useContentBlocks } from '@/hooks/useContentBlocks';
 import { PROJECTS, type Project } from '@/lib/fallbacks';
 import { TiltCard } from './interactions/TiltCard';
+import { imageUrl } from '@/lib/safeUrl';
 
 export function projectAlt(p: Pick<Project, 'title' | 'category'>) {
   return `${p.title} — ${p.category} project by Harsh Kapadiya`;
@@ -14,6 +15,7 @@ export function projectAlt(p: Pick<Project, 'title' | 'category'>) {
 function ProjectCard({ project, index }: { project: Project; index: number }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
+  const src = imageUrl(project.image_url);
 
   return (
     <motion.div
@@ -25,13 +27,15 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
     >
       <Link to={`/work/${project.slug}`} className="block h-full" aria-label={`${project.title} case study`}>
         <TiltCard max={5} className="group h-full w-full overflow-hidden rounded-2xl">
-          <img
-            src={project.image_url}
-            alt={projectAlt(project)}
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
+          {src && (
+            <img
+              src={src}
+              alt={projectAlt(project)}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-70 group-hover:opacity-85 transition-opacity duration-500" />
           <div className="absolute inset-0 p-6 md:p-7 flex flex-col justify-between">
             <div className="flex items-center justify-between">

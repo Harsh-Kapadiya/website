@@ -24,14 +24,14 @@ const TABS = {
         { key: 'slug', label: 'URL slug', hint: 'lowercase-with-dashes → /work/your-slug' },
         { key: 'category', label: 'Category' },
         { key: 'year', label: 'Year' },
-        { key: 'image_url', label: 'Cover image URL', hint: 'Must start with https://' },
+        { key: 'image_url', label: 'Cover image URL', hint: 'A direct https:// image link, or a Google Drive share link (set sharing to "Anyone with the link")' },
         { key: 'link_url', label: 'Live project link (optional)' },
         { key: 'size', label: 'Card size', type: 'select', options: ['large', 'small'] },
         { key: 'overview', label: 'Overview', type: 'textarea' },
         { key: 'challenge', label: 'The challenge', type: 'textarea' },
         { key: 'solution', label: 'The solution', type: 'textarea' },
         { key: 'results', label: 'Results', type: 'textarea', placeholder: 'Real, measurable outcomes build the most trust' },
-        { key: 'gallery', label: 'Gallery image URLs', type: 'lines', placeholder: 'One https:// URL per line' },
+        { key: 'gallery', label: 'Gallery image URLs', type: 'lines', placeholder: 'One image link per line (https:// or a Google Drive share link)' },
       ]}
     />
   ),

@@ -1,6 +1,7 @@
 import { Quote, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTable } from '@/hooks/useTable';
+import { imageUrl } from '@/lib/safeUrl';
 
 type Review = { id: string; author: string; role: string | null; avatar_url: string | null; quote: string; rating: number; created_at: string };
 
@@ -18,8 +19,8 @@ function ReviewCard({ r, hidden }: { r: Review; hidden?: boolean }) {
       </div>
       <blockquote className="relative text-white/70 leading-relaxed flex-1 text-[0.9375rem]">“{r.quote}”</blockquote>
       <figcaption className="relative flex items-center gap-3">
-        {r.avatar_url ? (
-          <img src={r.avatar_url} alt={`${r.author}${r.role ? `, ${r.role}` : ''}`} loading="lazy" className="w-10 h-10 rounded-full object-cover grayscale ring-1 ring-white/10" />
+        {imageUrl(r.avatar_url) ? (
+          <img src={imageUrl(r.avatar_url)} alt={`${r.author}${r.role ? `, ${r.role}` : ''}`} loading="lazy" className="w-10 h-10 rounded-full object-cover grayscale ring-1 ring-white/10" />
         ) : (
           <span aria-hidden className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-[0.8rem] font-medium ring-1 ring-white/10">
             {r.author.charAt(0)}

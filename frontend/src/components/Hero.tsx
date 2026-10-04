@@ -4,7 +4,7 @@ import { ArrowDownRight, Clock, Code2, Terminal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useContentBlocks } from "@/hooks/useContentBlocks";
 import { useTable } from "@/hooks/useTable";
-import { safeSplineUrl } from "@/lib/safeUrl";
+import { imageUrl, safeSplineUrl } from "@/lib/safeUrl";
 import { trackEvent } from "@/lib/analytics";
 import { Magnetic } from "./interactions/Magnetic";
 
@@ -66,7 +66,7 @@ export function Hero() {
           )
         ) : (
           <img
-            src={get("hero", "poster_url", DEFAULT_POSTER)}
+            src={imageUrl(get("hero", "poster_url", DEFAULT_POSTER)) || DEFAULT_POSTER}
             alt=""
             decoding="async"
             className="block w-full h-full object-cover opacity-90"

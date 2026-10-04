@@ -278,6 +278,17 @@ Only structural section headings remain in code.
 
 If Supabase is unavailable, the website falls back to built-in starter content instead of rendering an empty page.
 
+### Images
+
+There's no upload button for pictures, so image fields (project covers, gallery, hero poster, about photo, review avatars) take a link:
+
+* **A direct image link** (it opens just the picture, e.g. `https://images.unsplash.com/...`), or
+* **A Google Drive share link**: in Drive, *Share* → *General access: Anyone with the link* → *Copy link*. The site converts it to Google's direct image address automatically.
+
+An empty or invalid link (like the `https://` placeholder on a new project) shows no picture instead of a broken one.
+
+Pictures appear as soon as the page loads. The pre-rendered HTML that search engines and link previews read still shows the old ones until the next deploy.
+
 ***
 
 ## 📬 Contact & Review System
@@ -1066,6 +1077,7 @@ The production build was verified for:
 | Chat keeps saying "I don't have that information" | The fact isn't in your admin content, or the guard blocked an unbacked number/link. Render logs → `chat guard` shows which check fired |
 | Chat: "resting for today"           | `CHAT_DAILY_LIMIT` reached — raise it or wait until tomorrow |
 | Chat answer is outdated             | Content is cached for 5 minutes after an admin edit |
+| Project picture doesn't show       | Link isn't a picture: use a direct image link, or a Google Drive share link set to "Anyone with the link" (see *Images*) |
 | Chat: "I didn't catch your details correctly" | The model's copy of the visitor's name or email didn't match what they typed, so nothing was saved. The visitor just types them again; Render logs show `check: "lead-not-from-visitor"` |
 
 ***

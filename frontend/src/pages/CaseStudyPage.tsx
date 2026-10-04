@@ -4,7 +4,7 @@ import { useTable } from '@/hooks/useTable';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useJsonLd } from '@/hooks/useJsonLd';
 import { PROJECTS, type Project } from '@/lib/fallbacks';
-import { safeHref } from '@/lib/safeUrl';
+import { imageUrl, safeHref } from '@/lib/safeUrl';
 import { projectAlt } from '@/components/Work';
 import { CtaBanner } from '@/components/CtaBanner';
 import { NotFoundPage } from './NotFoundPage';
@@ -21,11 +21,12 @@ export function CaseStudyPage() {
   const { data: projects, loading } = useTable<Project>('projects', PROJECTS);
   const index = projects.findIndex((p) => p.slug === slug);
   const project = projects[index];
+  const cover = imageUrl(project?.image_url);
 
   usePageMeta({
     title: project ? `${project.title} — case study` : 'Case study',
     description: project?.overview || (project ? `${project.title}: a ${project.category} project by Harsh Kapadiya.` : 'Case study by Harsh Kapadiya.'),
-    image: project?.image_url,
+    image: cover || undefined,
   });
   useJsonLd(
     'case-study',
@@ -35,7 +36,7 @@ export function CaseStudyPage() {
       name: project.title,
       genre: project.category,
       dateCreated: project.year,
-      image: project.image_url,
+      ...(cover ? { image: cover } : {}),
       ...(project.overview ? { abstract: project.overview } : {}),
       creator: { '@type': 'Person', name: 'Harsh Kapadiya' },
     }
@@ -59,7 +60,7 @@ export function CaseStudyPage() {
             {project.title}
           </h1>
 
-          <img src={project.image_url} alt={projectAlt(project)} className="w-full aspect-[16/9] object-cover rounded-2xl mb-16" />
+          {cover && <img src={cover} alt={projectAlt(project)} className="w-full aspect-[16/9] object-cover rounded-2xl mb-16" />}
 
           {written.length ? (
             <div className="grid md:grid-cols-[220px_1fr] gap-x-12 gap-y-12">
@@ -76,7 +77,7 @@ export function CaseStudyPage() {
 
           {project.gallery && project.gallery.length > 0 && (
             <div className="grid md:grid-cols-2 gap-4 mt-16">
-              {project.gallery.map((src, i) => (
+              {project.gallery.map(imageUrl).filter(Boolean).map((src, i) => (
                 <img key={src} src={src} alt={`${project.title} — detail ${i + 1}`} loading="lazy" className="w-full rounded-2xl object-cover" />
               ))}
             </div>

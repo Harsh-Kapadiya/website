@@ -3,6 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useContentBlocks } from '@/hooks/useContentBlocks';
 import { useTable } from '@/hooks/useTable';
+import { imageUrl } from '@/lib/safeUrl';
 
 type Stat = { id: string; value: string; label: string };
 type Client = { id: string; name: string };
@@ -31,7 +32,7 @@ export function About() {
 
           <div className="mt-10 flex items-center gap-4">
             <img
-              src={get('about', 'photo_url', '/img/harsh.jpg')}
+              src={imageUrl(get('about', 'photo_url', '/img/harsh.jpg')) || '/img/harsh.jpg'}
               alt={`Portrait of ${name}`}
               width={48}
               height={48}
