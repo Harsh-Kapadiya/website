@@ -47,7 +47,7 @@ test('validateChat rejects forged or oversized payloads', () => {
 test('buildSections labels every fact and drops asset URLs', () => {
   const ids = sections.map((s) => s.id);
   assert.deepEqual(ids, ['pages', 'copy:hero', 'copy:contact', 'services', 'project:kiln', 'faq', 'socials']);
-  assert.match(formatSections(sections), /\[faq\] FAQ — answers written by Harsh\n- Q: Are you open to full-time roles\?\n  A: Yes, from June 2027\./);
+  assert.match(formatSections(sections), /\[faq\] FAQ\n- Q: Are you open to full-time roles\?\n  A: Yes, from June 2027\./);
   assert.doesNotMatch(formatSections(sections), /Draft\?/); // unanswered questions are left out
   const text = formatSections(sections);
   assert.match(text, /\[project:kiln\] Project: Kiln\nKiln \(E-commerce — 2024\) — case study https:\/\/harsh\.example\/work\/kiln/);

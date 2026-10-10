@@ -1062,7 +1062,7 @@ The production build was verified for:
 * Sticky CTA
 * Admin routing
 * Mobile 3D fallback
-* Chat assistant: replies, clickable links, word-by-word reveal (instant with reduced motion), lead → GA event, offline state, keyboard (Esc / focus), mobile placement above the sticky CTA
+* Chat assistant: opens without blanking the page in Chrome 152+ (where `scrollTo()` returns a Promise), replies, clickable links, word-by-word reveal (instant with reduced motion), lead → GA event, offline state, keyboard (Esc / focus), mobile placement above the sticky CTA
 * Pre-rendered HTML
 * JavaScript-disabled rendering
 * Duplicate metadata prevention
@@ -1093,6 +1093,7 @@ The production build was verified for:
 | Chat: "resting for today"           | `CHAT_DAILY_LIMIT` reached — raise it or wait until tomorrow |
 | Chat answer is outdated             | Content is cached for 5 minutes after an admin edit |
 | Project picture doesn't show       | Link isn't a picture: use a direct image link, or a Google Drive share link set to "Anyone with the link" (see *Images*) |
+| Site goes black when opening the chat | Fixed: a React effect returned the Promise that newer Chrome's `scrollTo()` gives back. The chat is now also wrapped in an error boundary, so a chat bug hides only the chat, never the whole site |
 | Admin → Friday FAQ shows an error about `faqs` | The FAQ table doesn't exist yet: run the FAQ block from `supabase/schema.sql` (see *Friday FAQ*) |
 | Chat: "I didn't catch your details correctly" | The model's copy of the visitor's name or email didn't match what they typed, so nothing was saved. The visitor just types them again; Render logs show `check: "lead-not-from-visitor"` |
 

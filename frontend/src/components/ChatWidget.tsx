@@ -7,7 +7,7 @@ import { trackEvent } from '@/lib/analytics';
 type Msg = { role: 'user' | 'assistant'; content: string };
 type Status = 'idle' | 'checking' | 'ready' | 'offline';
 
-const GREETING = "Hi! I'm Friday, Harsh's AI assistant. Ask me about his work, services or experience — or leave him a message.";
+const GREETING = "Hi! I'm Friday. Ask me about Harsh work, services or experience — or leave him a message.";
 const SUGGESTIONS = ['What does Harsh Kapadiya do?', 'Show me a case study', 'I want to hire Harsh Kapadiya'];
 // The server accepts up to 12 turns; an odd count keeps "starts and ends with the visitor".
 const MAX_HISTORY = 11;
@@ -23,7 +23,10 @@ function Typed({ text, onTick, onDone }: { text: string; onTick: () => void; onD
   const [parts] = useState(() => text.split(/(\s+)/));
   const [n, setN] = useState(() => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? parts.length : 0));
   useEffect(() => {
-    if (n >= parts.length) return onDone();
+    if (n >= parts.length) {
+      onDone();
+      return;
+    }
     const t = setTimeout(() => {
       setN((v) => Math.min(parts.length, v + Math.max(2, Math.ceil(parts.length / 80))));
       onTick();
@@ -91,8 +94,14 @@ export function ChatWidget() {
     if (open) inputRef.current?.focus();
   }, [open, status]);
 
-  const scrollDown = () => listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  useEffect(scrollDown, [messages, busy, status, error]);
+  // Braces matter: newer Chrome returns a Promise from scrollTo(), and an effect must return nothing
+  // or a cleanup function — returning the Promise crashed React and blanked the whole page.
+  const scrollDown = () => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  };
+  useEffect(() => {
+    scrollDown();
+  }, [messages, busy, status, error]);
 
   function toggle(next: boolean) {
     setOpen(next);
