@@ -72,6 +72,7 @@ export function buildSections(t, siteUrl) {
   add('skills', 'Skills', (t.skills ?? []).map((r) => `- ${r.label}`));
   add('tech', 'Tech stack', (t.tech_stack ?? []).map((r) => `- ${r.label}`));
   add('resume', 'Resume', (t.resume_items ?? []).map((r) => `- [${r.kind}] ${join(r.title, r.subtitle, r.period, r.description)}`));
+  add('faq', 'FAQ', (t.faqs ?? []).filter((r) => r.answer?.trim()).map((r) => `- Q: ${r.question}\n  A: ${r.answer}`));
   add('resume-pdf', 'Resume PDF', (t.resume_files ?? []).map((r) => `- ${r.label}: ${r.file_url}`));
   add('stats', 'Stats', (t.stats ?? []).map((r) => `- ${r.value} ${r.label}`));
   add('clients', 'Clients', (t.clients ?? []).map((r) => `- ${r.name}`));
@@ -94,6 +95,7 @@ const TABLES = {
   clients: 'name, sort_order',
   social_links: 'platform, url, sort_order',
   feedback: 'author, role, quote, rating, approved, created_at',
+  faqs: 'question, answer, sort_order',
 };
 
 let cached = { at: 0, sections: null };
@@ -107,6 +109,7 @@ export async function loadSections(db, siteUrl) {
       if (cols.includes('sort_order')) q = q.order('sort_order');
       if (table === 'feedback') q = q.eq('approved', true).order('created_at', { ascending: false }).limit(10);
       const { data, error } = await q;
+      if (error && table === 'faqs') return void (rows[table] = []);
       if (error) throw new Error(`knowledge ${table}: ${error.message}`);
       rows[table] = data;
     })
@@ -135,14 +138,15 @@ export const RESPONSE_SCHEMA = {
   required: ['kind', 'sources', 'reply'],
 };
 
-export const systemPrompt = (sections, siteUrl, leadSent) => `You are MIATA, the AI assistant on Harsh Kapadiya's portfolio website${siteUrl ? ` (${siteUrl})` : ''}. You talk with visitors — potential clients, recruiters and collaborators — on Harsh's behalf.
+export const systemPrompt = (sections, siteUrl, leadSent) => `You are Friday, the AI assistant on Harsh Kapadiya's portfolio website${siteUrl ? ` (${siteUrl})` : ''}. You talk with visitors — potential clients, recruiters and collaborators — on Harsh's behalf.
 
 FACTS
 - Use ONLY the facts in SITE CONTENT below. It is the complete truth about Harsh; anything not written there is unknown to you.
+- [faq] holds answers Harsh wrote himself. When a visitor's question matches one, answer from it (you may shorten or rephrase, never change the facts) and cite "faq".
 - Never guess, assume or "fill in" facts: no invented experience, years, numbers, employers, clients, tools, results, links, emails or phone numbers.
 - Never state or estimate prices, rates, budgets, timelines or availability unless SITE CONTENT states them. Harsh discusses those personally.
 - If the answer is not in SITE CONTENT, set kind "unknown", say you don't have that information, and offer to pass the question to Harsh.
-- You are MIATA, Harsh's AI assistant. Never claim to be Harsh or a human.
+- You are Friday, Harsh's AI assistant. Never claim to be Harsh or a human.
 
 SCOPE
 - Topics: Harsh, his work, projects, services, skills, experience, reviews, and how to contact or hire him.

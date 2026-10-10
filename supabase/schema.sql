@@ -317,3 +317,19 @@ on conflict (slug) do nothing;
 
 -- No feedback is seeded on purpose: the testimonials section only ever
 -- shows real, approved client reviews, and stays hidden until there is one.
+
+-- ---------- FRIDAY (AI CHAT) FAQ ----------
+-- Questions answered in Harsh's own words; the chat assistant uses them.
+-- Admin-only: the public site never reads this table (the backend uses the secret key).
+-- Self-contained — on an existing project, run just this block in the SQL Editor.
+create table if not exists public.faqs (
+  id uuid primary key default gen_random_uuid(),
+  question text not null check (char_length(question) between 1 and 300),
+  answer text not null default '' check (char_length(answer) <= 2000),
+  sort_order int not null default 0
+);
+alter table public.faqs enable row level security;
+grant select, insert, update, delete on public.faqs to authenticated, service_role;
+drop policy if exists "admin manage faqs" on public.faqs;
+create policy "admin manage faqs" on public.faqs for all to authenticated
+  using ((select public.is_admin())) with check ((select public.is_admin()));

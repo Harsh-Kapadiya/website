@@ -7,13 +7,38 @@ import { trackEvent } from '@/lib/analytics';
 type Msg = { role: 'user' | 'assistant'; content: string };
 type Status = 'idle' | 'checking' | 'ready' | 'offline';
 
-const GREETING = "Hi! I'm MIATA, Harsh's AI assistant. Ask me about his work, services or experience — or leave him a message.";
+const GREETING = "Hi! I'm Friday, Harsh's AI assistant. Ask me about his work, services or experience — or leave him a message.";
 const SUGGESTIONS = ['What does Harsh Kapadiya do?', 'Show me a case study', 'I want to hire Harsh Kapadiya'];
 // The server accepts up to 12 turns; an odd count keeps "starts and ends with the visitor".
 const MAX_HISTORY = 11;
 const LINK = /(https?:\/\/[^\s<>()]+[^\s<>().,!?:;'"])/g;
 
 /** Plain text with http(s) links made clickable. React escapes the text; only http(s) becomes a link. */
+/**
+ * Reveals a reply word by word (≤ ~1.6 s however long it is). The server sends the reply only after
+ * it passed the fact checks, so visitors never see unchecked text. Instant with reduced motion;
+ * screen readers get the full reply once instead of every partial update.
+ */
+function Typed({ text, onTick, onDone }: { text: string; onTick: () => void; onDone: () => void }) {
+  const [parts] = useState(() => text.split(/(\s+)/));
+  const [n, setN] = useState(() => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? parts.length : 0));
+  useEffect(() => {
+    if (n >= parts.length) return onDone();
+    const t = setTimeout(() => {
+      setN((v) => Math.min(parts.length, v + Math.max(2, Math.ceil(parts.length / 80))));
+      onTick();
+    }, 20);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n]);
+  return (
+    <>
+      <span aria-hidden><Linkified text={parts.slice(0, n).join('')} /></span>
+      <span className="sr-only">{text}</span>
+    </>
+  );
+}
+
 function Linkified({ text }: { text: string }) {
   return (
     <>
@@ -43,6 +68,7 @@ export function ChatWidget() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [typing, setTyping] = useState(-1); // index of the reply being revealed
   const [leadSent, setLeadSent] = useState(false); // tells the backend not to save a second lead this chat
   const inputRef = useRef<HTMLInputElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
@@ -65,9 +91,8 @@ export function ChatWidget() {
     if (open) inputRef.current?.focus();
   }, [open, status]);
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages, busy, status, error]);
+  const scrollDown = () => listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  useEffect(scrollDown, [messages, busy, status, error]);
 
   function toggle(next: boolean) {
     setOpen(next);
@@ -91,6 +116,7 @@ export function ChatWidget() {
         leadSent,
       });
       setMessages((m) => [...m, { role: 'assistant', content: out.reply }]);
+      setTyping(next.length);
       if (out.leadSaved) {
         setLeadSent(true);
         trackEvent('generate_lead', { location: 'chat' });
@@ -156,7 +182,7 @@ export function ChatWidget() {
                 className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 ${m.role === 'user' ? 'ml-auto rounded-tr-md bg-white text-[#0a0a0a]' : 'rounded-tl-md bg-white/[0.06] text-white/85'
                   }`}
               >
-                {m.role === 'assistant' ? <Linkified text={m.content} /> : m.content}
+                {m.role === 'user' ? m.content : i === typing ? <Typed text={m.content} onTick={scrollDown} onDone={() => setTyping(-1)} /> : <Linkified text={m.content} />}
               </p>
             ))}
 

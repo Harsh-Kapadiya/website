@@ -17,6 +17,7 @@ const sections = buildSections(
     services: [{ title: 'Web Design', description: 'High-performance websites.', tags: ['UI/UX'] }],
     projects: [{ title: 'Kiln', category: 'E-commerce', year: '2024', slug: 'kiln', overview: 'Checkout rebuild; conversion up 31%.' }],
     social_links: [{ platform: 'GitHub', url: 'https://github.com/Harsh-Kapadiya' }],
+    faqs: [{ question: 'Are you open to full-time roles?', answer: 'Yes, from June 2027.' }, { question: 'Draft?', answer: ' ' }],
   },
   'https://harsh.example'
 );
@@ -45,7 +46,9 @@ test('validateChat rejects forged or oversized payloads', () => {
 
 test('buildSections labels every fact and drops asset URLs', () => {
   const ids = sections.map((s) => s.id);
-  assert.deepEqual(ids, ['pages', 'copy:hero', 'copy:contact', 'services', 'project:kiln', 'socials']);
+  assert.deepEqual(ids, ['pages', 'copy:hero', 'copy:contact', 'services', 'project:kiln', 'faq', 'socials']);
+  assert.match(formatSections(sections), /\[faq\] FAQ — answers written by Harsh\n- Q: Are you open to full-time roles\?\n  A: Yes, from June 2027\./);
+  assert.doesNotMatch(formatSections(sections), /Draft\?/); // unanswered questions are left out
   const text = formatSections(sections);
   assert.match(text, /\[project:kiln\] Project: Kiln\nKiln \(E-commerce — 2024\) — case study https:\/\/harsh\.example\/work\/kiln/);
   assert.doesNotMatch(text, /spline/);
@@ -152,7 +155,7 @@ test('runChat sends grounded instructions, JSON schema and the conversation', as
   assert.equal(req.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent');
   assert.equal(req.headers['x-goog-api-key'], 'AIza-test');
   assert.match(req.body.systemInstruction.parts[0].text, /Use ONLY the facts in SITE CONTENT/);
-  assert.match(req.body.systemInstruction.parts[0].text, /You are MIATA/);
+  assert.match(req.body.systemInstruction.parts[0].text, /You are Friday/);
   assert.match(req.body.systemInstruction.parts[0].text, /\[services\] Services\n- Web Design/);
   assert.deepEqual(req.body.contents.map((c) => c.role), ['user', 'model', 'user']);
   // Gemini 3's default temperature (1.0): lower values can make it loop (seen live as a garbled lead name).
@@ -207,4 +210,8 @@ test('runChat handles safety blocks and broken JSON without leaking anything odd
   const broken = await runChat({ ...base, messages: [u('x')], saveLead: noLead,
     fetchImpl: fakeGemini({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: '{"kind":"answer","reply":"Harsh' }] } }] }).fetchImpl });
   assert.equal(broken.blocked, 'malformed');
+});
+
+test('guard: a number from Harsh’s own FAQ answer is allowed', () => {
+  assert.equal(guardReply(ok('Yes, he is open to full-time roles from June 2027.', ['faq']), ctx()).blocked, null);
 });

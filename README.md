@@ -328,7 +328,7 @@ Supported:
 
 ## 💬 AI Chat Assistant
 
-A chat button (bottom-right on every page) opens **MIATA**, Harsh's AI assistant. It answers visitors' questions about Harsh's work, services and experience, and can pass a message to him. It runs on **Google Gemini's free tier**, so it costs ₹0.
+A chat button (bottom-right on every page) opens **Friday**, Harsh's AI assistant. It answers visitors' questions about Harsh's work, services and experience, and can pass a message to him. It runs on **Google Gemini's free tier**, so it costs ₹0.
 
 ```text
 Visitor ──► ChatWidget ──POST /api/chat──► Express API (Render)
@@ -352,6 +352,7 @@ Visitor ──► ChatWidget ──POST /api/chat──► Express API (Render)
   * Google's own free-tier limits per model (see AI Studio).
 
   When the main model's free quota runs out, the lighter model takes over. If both run out, the widget points visitors to the contact form.
+* **Word-by-word replies.** Replies appear word by word, taking at most about 1.6 s. True token streaming would show text before the fact checks run, so the server checks the whole reply first and the widget reveals it afterwards. Visitors who prefer reduced motion get it at once, and screen readers hear it once, not every partial update.
 * **Graceful.** Opening the chat wakes the Render server (the free plan sleeps). A "waking up" note appears if that takes over 1.5 s. Without `GEMINI_API_KEY`, the widget shows "offline" and points to the contact page.
 
 ### 🛡️ How it avoids making things up
@@ -372,11 +373,24 @@ What can still slip through: loose wording or paraphrasing of things that *are* 
 
 **Why temperature isn't lowered:** Google recommends keeping Gemini 3 at its default temperature (`1.0`) and warns that lower values can make it loop. An earlier version used `0.2`, and in live testing that garbled a lead's name. The fact checks above, not temperature, are what stop invented details.
 
+### 📚 Friday FAQ: answers in your own words
+
+Friday reads everything on the site, including your **Resume items**, the resume page text and the resume PDF link (not the PDF's contents). On top of that, the **Friday FAQ** tab in the admin panel lets you write answers to the questions visitors actually ask, like "Are you open to full-time roles?", "How do projects start?" or "Do you work remotely?". Friday answers them in your words and cites them as `faq`.
+
+**One-time setup (existing project):** Supabase → **SQL Editor** → paste only the **FRIDAY (AI CHAT) FAQ** block from the end of `supabase/schema.sql` → **Run**. Don't re-run the whole `schema.sql` on your live project, because it would re-add any sample projects you deleted. Until you run it, chat works as before, just without FAQ answers.
+
+**Using it:** Admin → **Friday FAQ** → *Add* → write the question and your answer → *Save*. Friday picks it up within 5 minutes.
+
+* Write the way you talk; Friday may shorten your answer but won't change its facts.
+* Questions with an empty answer are ignored, so you can draft them first.
+* Prices, dates and numbers you write here become facts Friday may repeat. Keep availability and rates current, because an outdated answer is worse than "I don't know".
+* The FAQ isn't shown on the website, but Friday will tell anyone what's in it, so never add a phone number, address or anything private.
+
 ### ✅ Tested live in production
 
 Tested against the live site on 4 Oct 2026 (real Gemini model, real site content):
 
-| Visitor asked | MIATA replied | Result |
+| Visitor asked | The assistant replied | Result |
 | ------------- | ------------- | ------ |
 | What does Harsh do? | Full-stack developer and designer, his services; all from the site | ✅ grounded |
 | What is Harsh's hourly rate? | Doesn't have pricing info, offers to pass the question to Harsh | ✅ no invented price |
@@ -394,9 +408,9 @@ Tested against the live site on 4 Oct 2026 (real Gemini model, real site content
 **Fixes made after this test** (in code, live after the next deploy):
 
 * Temperature back to Gemini 3's default, which removes the cause of the garbled name.
-* A lead's name and email must be ones the visitor typed. Otherwise MIATA asks them to type their details again instead of saving something wrong.
+* A lead's name and email must be ones the visitor typed. Otherwise the assistant asks them to type their details again instead of saving something wrong.
 * Visitor-facing error messages rewritten. They used to include instructions meant for the model ("Ask the visitor to correct it").
-* The backend prompt now knows the assistant is called MIATA, and the greeting reads "Hi! I'm MIATA, Harsh's AI assistant."
+* The backend prompt now knows the assistant's name, and the greeting matches it (the assistant has since been renamed Friday).
 
 **After deploying, re-test the lead:** open the site → chat → "I want to hire Harsh, I'm Test, test@example.com" → "Yes, send it" → check admin → *Inbox* and your email.
 
@@ -990,8 +1004,9 @@ The backend test suite covers:
 * chat payload validation (forged roles, alternation, sizes, `leadSent`)
 * hallucination guard: uncited answers, invented prices, links, emails, phones, numbers and "N years" claims are replaced; real facts and the visitor's own details pass
 * chat lead flow: saved only after the visitor confirms, once per chat, invalid details sent back to the visitor
+* a number from Harsh's own FAQ answer is allowed in a reply
 * hallucination guard on leads: a name or email the visitor never typed (invented, or garbled by a looping model) is refused
-* the request sent to Gemini (grounded instructions, the MIATA name, JSON schema, default temperature), fallback model on quota errors, safety blocks and broken JSON
+* the request sent to Gemini (grounded instructions, the Friday name, your FAQ answers (unanswered ones skipped), JSON schema, default temperature), fallback model on quota errors, safety blocks and broken JSON
 
 Live check against the real model with your real content: `npm run chat:eval` (see [AI Chat Assistant](#-ai-chat-assistant)).
 
@@ -1047,7 +1062,7 @@ The production build was verified for:
 * Sticky CTA
 * Admin routing
 * Mobile 3D fallback
-* Chat assistant: replies, clickable links, lead → GA event, offline state, keyboard (Esc / focus), mobile placement above the sticky CTA
+* Chat assistant: replies, clickable links, word-by-word reveal (instant with reduced motion), lead → GA event, offline state, keyboard (Esc / focus), mobile placement above the sticky CTA
 * Pre-rendered HTML
 * JavaScript-disabled rendering
 * Duplicate metadata prevention
@@ -1078,6 +1093,7 @@ The production build was verified for:
 | Chat: "resting for today"           | `CHAT_DAILY_LIMIT` reached — raise it or wait until tomorrow |
 | Chat answer is outdated             | Content is cached for 5 minutes after an admin edit |
 | Project picture doesn't show       | Link isn't a picture: use a direct image link, or a Google Drive share link set to "Anyone with the link" (see *Images*) |
+| Admin → Friday FAQ shows an error about `faqs` | The FAQ table doesn't exist yet: run the FAQ block from `supabase/schema.sql` (see *Friday FAQ*) |
 | Chat: "I didn't catch your details correctly" | The model's copy of the visitor's name or email didn't match what they typed, so nothing was saved. The visitor just types them again; Render logs show `check: "lead-not-from-visitor"` |
 
 ***
@@ -1100,8 +1116,8 @@ Failed email notifications are logged. The submission remains available in the a
 
 **AI chat**
 
-* Questions in Hindi or Hinglish are understood, but MIATA may answer in English.
-* The name "MIATA" lives in code (the `ChatWidget.tsx` greeting and the prompt in `backend/src/chat.js`), not the admin panel. Change both together.
+* Questions in Hindi or Hinglish are understood, but Friday may answer in English.
+* The name "Friday" lives in code (the `ChatWidget.tsx` greeting and the prompt in `backend/src/chat.js`), not the admin panel. Change both together.
 * On Gemini's free tier, Google may use chats to improve its products; the widget tells visitors this.
 
 **Content Security Policy**

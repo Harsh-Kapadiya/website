@@ -104,6 +104,18 @@ const TABS = {
     />
   ),
   'Resume file': () => <ResumeFileEditor />,
+  'Friday FAQ': () => (
+    <TableEditor
+      table="faqs"
+      title="Friday FAQ — answers for the AI chat"
+      hint="Friday answers these questions in your words (along with everything else on the site). Not shown on the website, but Friday will tell any visitor, so never add private details like your phone number or address."
+      newRow={() => ({ question: `New question ${uid()}?`, answer: '' })}
+      fields={[
+        { key: 'question', label: 'Question', placeholder: 'Are you open to full-time roles?' },
+        { key: 'answer', label: 'Your answer', type: 'textarea', placeholder: 'Yes — I graduate in 2027 and…' },
+      ]}
+    />
+  ),
   Reviews: () => <FeedbackModeration />,
   Inbox: () => <ContactInbox />,
 } as const;
