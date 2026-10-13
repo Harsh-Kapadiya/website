@@ -351,7 +351,7 @@ Visitor ──► ChatWidget ──POST /api/chat──► Express API (Render)
   * `CHAT_DAILY_LIMIT` replies per day overall (default `300`).
   * Google's own free-tier limits per model (see AI Studio).
 
-  When the main model's free quota runs out, the lighter model takes over. If both run out, the widget points visitors to the contact form.
+  When the main model's free quota runs out, or it takes longer than 20 seconds to answer, the lighter model takes over. If both run out, the widget points visitors to the contact form.
 * **Word-by-word replies.** Replies appear word by word, taking at most about 1.6 s. True token streaming would show text before the fact checks run, so the server checks the whole reply first and the widget reveals it afterwards. Visitors who prefer reduced motion get it at once, and screen readers hear it once, not every partial update.
 * **Graceful.** Opening the chat wakes the Render server (the free plan sleeps). A "waking up" note appears if that takes over 1.5 s. Without `GEMINI_API_KEY`, the widget shows "offline" and points to the contact page.
 
@@ -372,6 +372,8 @@ If a check fails, the visitor sees a safe reply instead: *"I don't have that inf
 What can still slip through: loose wording or paraphrasing of things that *are* in your content. The bot is only as right as your site, so keep the admin content accurate.
 
 **Why temperature isn't lowered:** Google recommends keeping Gemini 3 at its default temperature (`1.0`) and warns that lower values can make it loop. An earlier version used `0.2`, and in live testing that garbled a lead's name. The fact checks above, not temperature, are what stop invented details.
+
+**Why thinking is set to "low":** `gemini-3.8-flash` thinks at "medium" by default, and its thinking counts toward the reply's token budget. In October 2026 that made every chat reply (even "Hi") overrun the time limit, so hire requests couldn't be sent. Google recommends `low` for real-time chat (`minimal` returns an error on 3.8 Flash). The fact checks, not the model's thinking, are what stop invented details.
 
 ### 📚 Friday FAQ: answers in your own words
 
@@ -1088,7 +1090,7 @@ The production build was verified for:
 | Empty HTML from `view-source:`      | Page wasn't included in the last pre-render build |
 | Search Console verification fails   | Redeploy after setting verification variable      |
 | Chat says "offline"                 | `GEMINI_API_KEY` not set on Render (check `/api/health` → `"chat":true`) |
-| Chat: "having trouble right now"    | Render logs → `chat failed`: wrong or deleted key (`400`/`403`), or both models' free quota used up (`429`), so wait for the reset |
+| Chat: "having trouble right now"    | Render logs → `chat failed`: wrong or deleted key (`400`/`403`), or both models' free quota used up (`429`), so wait for the reset; or `TimeoutError`: the model took longer than 20 seconds on both models |
 | Chat keeps saying "I don't have that information" | The fact isn't in your admin content, or the guard blocked an unbacked number/link. Render logs → `chat guard` shows which check fired |
 | Chat: "resting for today"           | `CHAT_DAILY_LIMIT` reached — raise it or wait until tomorrow |
 | Chat answer is outdated             | Content is cached for 5 minutes after an admin edit |

@@ -135,6 +135,7 @@ function fakeGemini(...responses) {
   const fetchImpl = async (url, init) => {
     requests.push({ url, headers: init.headers, body: JSON.parse(init.body) });
     const next = responses.shift();
+    if (next === 'timeout') throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
     if (typeof next === 'number') return new Response('{"error":{}}', { status: next });
     return new Response(JSON.stringify(next), { status: 200 });
   };
@@ -160,6 +161,8 @@ test('runChat sends grounded instructions, JSON schema and the conversation', as
   assert.deepEqual(req.body.contents.map((c) => c.role), ['user', 'model', 'user']);
   // Gemini 3's default temperature (1.0): lower values can make it loop (seen live as a garbled lead name).
   assert.equal(req.body.generationConfig.temperature, undefined);
+  // Low thinking keeps chat fast; the default ("medium") made every live reply time out.
+  assert.deepEqual(req.body.generationConfig.thinkingConfig, { thinkingLevel: 'low' });
   assert.equal(req.body.generationConfig.responseMimeType, 'application/json');
   assert.deepEqual(req.body.generationConfig.responseSchema.required, ['kind', 'sources', 'reply']);
 });
@@ -173,6 +176,13 @@ test('runChat replaces a hallucinated reply before the visitor sees it', async (
 
 test('runChat falls back to the lighter model when the first is out of free quota', async () => {
   const g = fakeGemini(429, geminiJson(ok('Hi there!', [], 'greeting')));
+  const out = await runChat({ ...base, messages: [u('hi')], saveLead: noLead, fetchImpl: g.fetchImpl });
+  assert.equal(out.reply, 'Hi there!');
+  assert.match(g.requests[1].url, /gemini-3\.5-flash-lite:generateContent/);
+});
+
+test('runChat falls back to the lighter model when the first one times out', async () => {
+  const g = fakeGemini('timeout', geminiJson(ok('Hi there!', [], 'greeting')));
   const out = await runChat({ ...base, messages: [u('hi')], saveLead: noLead, fetchImpl: g.fetchImpl });
   assert.equal(out.reply, 'Hi there!');
   assert.match(g.requests[1].url, /gemini-3\.5-flash-lite:generateContent/);

@@ -188,7 +188,7 @@ const digits = (s) => s.replace(/\D/g, '');
 
 const FALLBACK = {
   unknown: "I don't have that information about Harsh. Want me to pass your question to him? Just share your name and email.",
-  price: 'Harsh shares pricing and timelines personally, since they depend on the project. Want me to pass your details to him? Just share your name, email and what you need.',
+  price: 'Harsh shares pricing and timelines personally, since it depends on the project. Want me to pass your details to him? Just share your name, email and what you need.',
   broken: "Sorry, I couldn't put together a reliable answer. Could you rephrase that? You can also reach Harsh through the contact page.",
   lead: "Sorry, I didn't catch your details correctly. Could you type your name and email once more?",
 };
@@ -251,12 +251,15 @@ async function callGemini({ model, apiKey, system, messages, fetchImpl }) {
       systemInstruction: { parts: [{ text: system }] },
       contents: messages.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
       generationConfig: {
-        maxOutputTokens: 2048, // headroom for the model's internal reasoning; replies are capped at MAX_REPLY chars
+        // Chat needs speed: gemini-3.8-flash thinks at "medium" by default, which made every reply
+        // overrun the timeout. Google recommends "low" for real-time chat ("minimal" errors on 3.8 Flash).
+        thinkingConfig: { thinkingLevel: 'low' },
+        maxOutputTokens: 4096, // includes thinking tokens; replies themselves are capped at MAX_REPLY chars
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA,
       },
     }),
-    signal: AbortSignal.timeout(25_000),
+    signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) {
     const err = new Error(`Gemini ${model} ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -281,7 +284,8 @@ export async function runChat({ messages, sections, siteUrl, leadSent = false, a
       break;
     } catch (e) {
       lastErr = e;
-      if (!RETRYABLE.has(e.status)) throw e;
+      // A slow model (timeout) gets the same second chance as a busy one (429/5xx).
+      if (!RETRYABLE.has(e.status) && e.name !== 'TimeoutError') throw e;
     }
   }
   if (!out) throw lastErr;
