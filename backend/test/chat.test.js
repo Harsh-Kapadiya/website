@@ -109,22 +109,41 @@ test('guard: a lead only comes through when the visitor confirmed', () => {
   const lead = { name: 'Asha', email: 'asha@kiln.co', message: 'Need a store.' };
   const said = ctx('i am asha,  ASHA@kiln.co');
   assert.equal(guardReply(ok('Shall I send this?', [], 'lead_collecting', lead), said).lead, null);
-  assert.deepEqual(guardReply(ok('Sent! Sir will reply within 24 hours.', [], 'lead_confirmed', lead), said).lead, lead);
+  assert.deepEqual(guardReply(ok('Sent!', [], 'lead_confirmed', lead), said).lead, { ...lead, email: 'ASHA@kiln.co' });
 });
 
-test('guard: a lead with a name or email the visitor never typed is refused', () => {
-  const said = ctx('I am Asha, asha@kiln.co');
+test('guard: the live "Yes, send it" failure — a sloppy copy of the details still sends what the visitor typed', () => {
+  const visitor = "Hi, I want to hire Harsh for a portfolio website. My name is Test Visitor and my email is test.visitor@example.com.\nYes, send it.";
+  const send = (lead) => guardReply(ok('Sent!', [], 'lead_confirmed', lead), ctx(visitor));
+  // Name in another order/case, email missing or mistyped by the model, message left out:
   for (const lead of [
-    { name: 'Asha', email: 'asha@gmail.com', message: 'x' }, // invented email
-    { name: 'Asha Asha Asha Asha Asha Asha Asha Asha', email: 'asha@kiln.co', message: 'x' }, // looping output
-    { name: '', email: 'asha@kiln.co', message: 'x' },
-    { name: 'Asha', message: 'x' },
+    { name: 'Test Visitor', email: 'test.visitor@example.com', message: 'Portfolio website' },
+    { name: 'visitor test', email: 'test.visitor@example.com', message: 'Portfolio website' },
+    { name: 'Test Visitor', email: 'testvisitor@example.com', message: 'Portfolio website' },
+    { name: 'Test Visitor', message: 'Portfolio website' },
+    { name: 'Test Visitor' },
+  ]) {
+    const r = send(lead);
+    assert.equal(r.blocked, null, JSON.stringify(lead));
+    assert.equal(r.lead.email, 'test.visitor@example.com');
+    assert.ok(r.lead.message.length > 0);
+  }
+});
+
+test('guard: a lead with a name the visitor never typed, or no email at all, is refused', () => {
+  const said = ctx('I am Asha, asha@kiln.co');
+  for (const [lead, check] of [
+    [{ name: 'Asha Asha Asha Asha Asha Asha', email: 'asha@kiln.co', message: 'x' }, 'lead-name-not-typed'], // looping output
+    [{ name: 'Priya', email: 'asha@kiln.co', message: 'x' }, 'lead-name-not-typed'], // invented name
+    [{ name: '', email: 'asha@kiln.co', message: 'x' }, 'lead-name-not-typed'],
   ]) {
     const r = guardReply(ok('Sent!', [], 'lead_confirmed', lead), said);
-    assert.equal(r.blocked, 'lead-not-from-visitor', JSON.stringify(lead));
+    assert.equal(r.blocked, check, JSON.stringify(lead));
     assert.equal(r.lead, null);
     assert.match(r.reply, /type your name and email once more/);
   }
+  const noEmail = guardReply(ok('Sent!', [], 'lead_confirmed', { name: 'Asha', email: 'asha@gmail.com', message: 'x' }), ctx('I am Asha'));
+  assert.equal(noEmail.blocked, 'lead-email-not-typed'); // an email the visitor never gave is never used
 });
 
 // ---------- the Gemini call ----------
@@ -165,6 +184,7 @@ test('runChat sends grounded instructions, JSON schema and the conversation', as
   assert.deepEqual(req.body.generationConfig.thinkingConfig, { thinkingLevel: 'low' });
   assert.equal(req.body.generationConfig.responseMimeType, 'application/json');
   assert.deepEqual(req.body.generationConfig.responseSchema.required, ['kind', 'sources', 'reply']);
+  assert.deepEqual(req.body.generationConfig.responseSchema.properties.lead.required, ['name', 'email', 'message']);
 });
 
 test('runChat replaces a hallucinated reply before the visitor sees it', async () => {
@@ -209,8 +229,8 @@ test('runChat saves a confirmed lead once, and never again after leadSent', asyn
 });
 
 test('runChat asks the visitor to fix a lead the contact-form validator rejects', async () => {
-  const g = fakeGemini(geminiJson(ok('Sent!', [], 'lead_confirmed', { name: 'Asha', email: 'not-an-email', message: 'Hi' })));
-  const out = await runChat({ ...base, messages: [u('yes, I am Asha and my email is not-an-email')], saveLead: async () => ({ ok: false, error: 'Please check the email field. Could you check your details and confirm again?' }), fetchImpl: g.fetchImpl });
+  const g = fakeGemini(geminiJson(ok('Sent!', [], 'lead_confirmed', { name: 'Asha', email: 'asha@kiln.co', message: 'Hi' })));
+  const out = await runChat({ ...base, messages: [u('yes, I am Asha and my email is asha@kiln.co')], saveLead: async () => ({ ok: false, error: 'Please check the email field. Could you check your details and confirm again?' }), fetchImpl: g.fetchImpl });
   assert.deepEqual(out, { reply: 'Please check the email field. Could you check your details and confirm again?', leadSaved: false, blocked: 'invalid-lead' });
 });
 

@@ -133,6 +133,7 @@ export const RESPONSE_SCHEMA = {
       type: 'OBJECT',
       nullable: true,
       properties: { name: { type: 'STRING' }, email: { type: 'STRING' }, message: { type: 'STRING' } },
+      required: ['name', 'email', 'message'], // a lighter model may otherwise drop fields at the "yes" turn
     },
   },
   required: ['kind', 'sources', 'reply'],
@@ -229,11 +230,21 @@ export function guardReply(raw, { sectionIds, knowledgeText, visitorText }) {
   // A lead may only carry the name and email the visitor typed — never ones the model made up or garbled.
   let lead = null;
   if (raw.kind === 'lead_confirmed' && raw.lead && typeof raw.lead === 'object') {
-    const squash = (v) => String(v).trim().toLowerCase().replace(/\s+/g, ' ');
-    const said = squash(visitorText);
-    const typed = (v) => typeof v === 'string' && v.trim() !== '' && said.includes(squash(v));
-    if (!typed(raw.lead.name) || !typed(raw.lead.email)) return fail('lead-not-from-visitor', FALLBACK.lead);
-    lead = raw.lead;
+    const words = (v) => String(v ?? '').toLowerCase().match(/[\p{L}\p{N}'-]+/gu) ?? [];
+    const saidWords = new Set(words(visitorText));
+    // Name: only words the visitor typed (any case or order), each once — blocks invented and looping names.
+    const name = String(raw.lead.name ?? '').trim();
+    const nameWords = words(name);
+    if (!nameWords.length || !nameWords.every((w) => saidWords.has(w)) || new Set(nameWords).size !== nameWords.length) {
+      return fail('lead-name-not-typed', FALLBACK.lead);
+    }
+    // Email: always one the visitor typed — the model's copy if it matches, otherwise the last one they gave.
+    const typedEmails = visitorText.match(EMAIL_RE) ?? [];
+    const email = typedEmails.find((e) => e.toLowerCase() === String(raw.lead.email ?? '').trim().toLowerCase()) ?? typedEmails.at(-1);
+    if (!email) return fail('lead-email-not-typed', FALLBACK.lead);
+    // Message: the model's summary, or the visitor's own words if it left it out.
+    const message = String(raw.lead.message ?? '').trim() || visitorText.slice(-2000);
+    lead = { name, email, message };
   }
   return { kind: raw.kind, reply, sources, lead, blocked: null };
 }

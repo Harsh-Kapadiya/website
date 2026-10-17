@@ -365,7 +365,7 @@ No language model is 100% hallucination-proof, so the bot doesn't rely on the mo
 | 2 | **Structured answer** | Gemini must return JSON matching a schema: `kind`, `sources`, `reply`, `lead`. |
 | 3 | **Citations** | A factual answer (`kind: "answer"`) must cite at least one real section id. No citation, no answer. |
 | 4 | **Fact checks** (`guardReply`) | Every link, email, phone number, price and multi-digit number in the reply must appear in your content or in what the visitor typed. "N years / months / %" claims are checked too. |
-| 5 | **Lead safety** | A lead is saved only when the visitor confirmed (`lead_confirmed`), the name and email are ones the visitor actually typed, the details pass the contact form's validator, and no lead was already sent in that chat. |
+| 5 | **Lead safety** | A lead is saved only when the visitor confirmed (`lead_confirmed`), the name uses only words the visitor typed and the email is one they typed (taken from their own words if the model's copy is off), the details pass the contact form's validator, and no lead was already sent in that chat. |
 
 If a check fails, the visitor sees a safe reply instead: *"I don't have that information about Harsh. Want me to pass your question to him?"* For prices, it offers to pass on their details. Broken or cut-off output gets "Could you rephrase that?". Render logs record which check fired (`chat guard` → `check: "unknown-number"`), never the conversation.
 
@@ -1097,7 +1097,7 @@ The production build was verified for:
 | Project picture doesn't show       | Link isn't a picture: use a direct image link, or a Google Drive share link set to "Anyone with the link" (see *Images*) |
 | Site goes black when opening the chat | Fixed: a React effect returned the Promise that newer Chrome's `scrollTo()` gives back. The chat is now also wrapped in an error boundary, so a chat bug hides only the chat, never the whole site |
 | Admin → Friday FAQ shows an error about `faqs` | The FAQ table doesn't exist yet: run the FAQ block from `supabase/schema.sql` (see *Friday FAQ*) |
-| Chat: "I didn't catch your details correctly" | The model's copy of the visitor's name or email didn't match what they typed, so nothing was saved. The visitor just types them again; Render logs show `check: "lead-not-from-visitor"` |
+| Chat: "I didn't catch your details correctly" | The model's copy of the visitor's name used words they never typed, or the visitor gave no email, so nothing was saved. The visitor types them again. Render logs show `check: "lead-name-not-typed"` or `"lead-email-not-typed"`. A missing or mistyped email in the model's copy is fixed automatically from what the visitor typed |
 
 ***
 
